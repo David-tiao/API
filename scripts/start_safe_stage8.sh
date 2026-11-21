@@ -234,7 +234,7 @@ cmd_start() {
     --label "${LABEL}=$IDENTITY" \
     --network "$NETWORK" \
     --user "$(id -u):$(id -g)" \
-    --env HOME=/tmp \
+    --env HOME=/out/home --env TMPDIR=/out/tmp --env XDG_CACHE_HOME=/out/cache \
     --shm-size=512m \
     "${env_args[@]}" \
     -v "$config:/cfg/site.json:ro" \

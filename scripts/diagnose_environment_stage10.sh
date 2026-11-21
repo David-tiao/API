@@ -194,7 +194,8 @@ if (!wanted || wanted!==parser.version) process.exit(2);
     fail 'Node/Babel missing or version mismatch; see full log.'
   fi
   if docker run --rm --pull=never --shm-size=512m --user "$(id -u):$(id -g)" \
-      -e HOME=/tmp --entrypoint python "$IMAGE" -c '
+      -v "$OPS_DIR:/out" -e HOME=/out/home -e TMPDIR=/out/tmp \
+      -e XDG_CACHE_HOME=/out/cache --entrypoint python "$IMAGE" -c '
 from playwright.sync_api import sync_playwright
 import os
 with sync_playwright() as p:

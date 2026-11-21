@@ -8,7 +8,10 @@ FROM mcr.microsoft.com/playwright/python:v1.55.0-noble
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
+    HOME=/out/home \
+    TMPDIR=/out/tmp \
+    XDG_CACHE_HOME=/out/cache
 
 WORKDIR /app
 
@@ -23,6 +26,6 @@ COPY api_extractor ./api_extractor
 COPY tools ./tools
 COPY README.md ./
 
-RUN mkdir -p /out /cfg
+RUN mkdir -p /out /cfg /out/tmp /out/home /out/cache
 
 ENTRYPOINT ["python", "-m", "api_extractor.cli"]

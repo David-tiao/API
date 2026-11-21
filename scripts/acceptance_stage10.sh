@@ -50,7 +50,7 @@ for i in 1 2; do
     timeout --signal=TERM --kill-after=10s "$((BUDGET+15))" \
       docker run --rm --pull=never --network "$NETWORK" \
       --shm-size=512m --user "$(id -u):$(id -g)" \
-      -e HOME=/tmp "${ENV_ARGS[@]}" \
+      -e HOME=/out/home -e TMPDIR=/out/tmp -e XDG_CACHE_HOME=/out/cache "${ENV_ARGS[@]}" \
       -v "$CONFIG:/cfg/site.json:ro" -v "$RUN:/out" \
       "$IMAGE" --target "$TARGET" --config /cfg/site.json \
       --out /out/result.json --budget "$BUDGET" \

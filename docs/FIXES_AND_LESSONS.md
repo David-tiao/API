@@ -75,3 +75,9 @@ docker run --rm --pull=never api-extractor:0.1.0 --help
 - 新增 `scripts/acceptance_stage10.sh`。使用明确授权的目标和现有 Docker 镜像独立执行两次，核查容器退出状态、镜像体积、Schema、`tool.log`、证据路径/HAR 索引、两次输出差异；仅写入 `out/acceptance/`，不修改 Docker 服务或其他容器。
 - 使用方法：`bash scripts/acceptance_stage10.sh https://你的授权练习站点/ ./site.json 180`。必要时环境变量 `API_EXTRACTOR_NETWORK=bench-net` 指向已存在的 Docker 网络。
 - **验证边界：**本次本地 Python 3.13 环境完成 19 项测试与源码语法验证；此验收脚本仅通过 Bash 语法和帮助输出检查，因当前容器没有 Docker daemon，未执行真实 Docker 双轮验收。
+
+## 8. 容器临时文件边界（R7）
+
+浏览器框架会创建临时 profile/cache；默认 Linux 位置可能位于 `/tmp` 或用户主目录。为尽量满足“运行期不得写出 `/out`”的约束，Dockerfile 现声明 `HOME=/out/home`、`TMPDIR=/out/tmp`、`XDG_CACHE_HOME=/out/cache`，并在执行管线时在已核准的 `/out` 下创建子目录。启动/诊断/双轮验收脚本使用相同环境变量。
+
+**风险和待测：** 这些设置仅引导已知框架缓存路径，不能证明 Chromium、动态链接器和第三方包不存在其他临时写入。需要在评测容器中用文件系统审计确认 R7；不能仅凭静态配置宣称满足全部规则。路径校验先于创建，避免误写到挂载点外。

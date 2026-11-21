@@ -38,6 +38,11 @@ async def run_pipeline(target: str, config_path: str, out_path: str, budget: int
     if Path("/out").exists():
         out_dir = Path("/out")  # R6: tool.log is always /out/tool.log.
     out_dir.mkdir(parents=True, exist_ok=True)
+    if Path("/out").exists():
+        # Direct Chromium temporary profiles and caches to the authorized output
+        # mount; avoid writing runtime data to /tmp or the image filesystem.
+        for folder in ("tmp", "home", "cache"):
+            (out_dir / folder).mkdir(exist_ok=True)
     logger = JsonlLogger(out_dir / "tool.log")
     site_name = urlsplit(target).hostname or "unknown"
     exit_code = 0
