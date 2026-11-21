@@ -80,3 +80,24 @@ def test_signature_in_body_detected_without_leaking_values():
         'url': 'https://app.example.com/api/order', 'post_data': body, 'request_index': 0}])[0]
     assert ep['auth'] == 'sign'
     assert all('secret-value' not in str(v) for v in ep.values())
+
+
+def test_websocket_and_sse_static_apis_are_discovered(tmp_path):
+    guard = ScopeGuard('https://app.example.com/')
+    analyzer = StaticAnalyzer(tmp_path, tmp_path, guard)
+    record = ScriptRecord('https://app.example.com/app.js',
+        'fetch("/api/items"); new WebSocket("wss://app.example.com/live"); new EventSource("/stream");')
+    rows, _ = analyzer._regex_fallback(record)
+    observed = {(row['method'], row['url']) for row in rows}
+    assert ('GET', 'https://app.example.com/api/items') in observed
+    assert ('WS', 'wss://app.example.com/live') in observed
+    assert ('GET', 'https://app.example.com/stream') in observed
+
+
+def test_websocket_cannot_escape_target_scope(tmp_path):
+    guard = ScopeGuard('https://app.example.com/')
+    analyzer = StaticAnalyzer(tmp_path, tmp_path, guard)
+    record = ScriptRecord('https://app.example.com/app.js',
+        'new WebSocket("wss://other.example.com/live");')
+    rows, _ = analyzer._regex_fallback(record)
+    assert not rows

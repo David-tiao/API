@@ -34,7 +34,7 @@ docker build -t api-extractor:0.1.0 .
 docker run --rm --pull=never api-extractor:0.1.0 --help
 ```
 
-本轮在隔离 Python 环境运行了 19 项单元/本地集成测试，全部通过；`compileall` 和 Bash 语法检查也通过（动态分析模块的浏览器生命周期仍需真实 Chromium 实测）。这不是对 GitHub CI、Docker 构建或隐藏靶场的通过声明。所有未执行项必须在实际 Ubuntu/Docker 环境运行后再勾选。
+本轮在隔离 Python 环境运行了 21 项单元/本地集成测试，全部通过；`compileall` 和 Bash 语法检查也通过（动态分析模块的浏览器生命周期仍需真实 Chromium 实测）。这不是对 GitHub CI、Docker 构建或隐藏靶场的通过声明。所有未执行项必须在实际 Ubuntu/Docker 环境运行后再勾选。
 
 ## 4. S1～S5 功能覆盖与剩余缺口
 
@@ -81,3 +81,10 @@ docker run --rm --pull=never api-extractor:0.1.0 --help
 浏览器框架会创建临时 profile/cache；默认 Linux 位置可能位于 `/tmp` 或用户主目录。为尽量满足“运行期不得写出 `/out`”的约束，Dockerfile 现声明 `HOME=/out/home`、`TMPDIR=/out/tmp`、`XDG_CACHE_HOME=/out/cache`，并在执行管线时在已核准的 `/out` 下创建子目录。启动/诊断/双轮验收脚本使用相同环境变量。
 
 **风险和待测：** 这些设置仅引导已知框架缓存路径，不能证明 Chromium、动态链接器和第三方包不存在其他临时写入。需要在评测容器中用文件系统审计确认 R7；不能仅凭静态配置宣称满足全部规则。路径校验先于创建，避免误写到挂载点外。
+
+
+## 9. S5 静态入口增量识别
+
+发现部分前端仅通过 `new WebSocket(url)`、`new EventSource(url)` 声明实时通道，现有静态请求模式容易遗漏。因此在正则后备分析中识别字符串形式的 WebSocket（`WS`）和 SSE（`GET`）入口，并和 AST 结果合并去重，防止 AST 先发现其他接口时跳过这两类通道。新增两项测试验证 S5 地址发现和越界过滤。
+
+**限制：** 动态拼接的 WebSocket URL、帧内完整订阅载荷、GraphQL 变量类型及签名复现仍需要进一步完善和真实授权站点验证。此处“发现入口”不等于高级协议全部实现。

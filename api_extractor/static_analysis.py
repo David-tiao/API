@@ -15,6 +15,9 @@ _FETCH_CALL = re.compile(r"\bfetch\s*\(\s*[\"'`]([^\"'`]+)[\"'`](?:\s*,\s*\{[^}]
 _HTTP_CLIENT_CALL = re.compile(r"\b(?:axios|[A-Za-z_$][\w$]*)\.(get|post|put|patch|delete|head|options)\s*\(\s*[\"'`]([^\"'`]+)[\"'`]", re.I)
 _XHR_OPEN_CALL = re.compile(r"\.open\s*\(\s*[\"'`](GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)[\"'`]\s*,\s*[\"'`]([^\"'`]+)[\"'`]", re.I)
 
+_WS_CALL = re.compile(r"\bnew\s+WebSocket\s*\(\s*[\"'`]([^\"'`]+)[\"'`]", re.I)
+_SSE_CALL = re.compile(r"\bnew\s+EventSource\s*\(\s*[\"'`]([^\"'`]+)[\"'`]", re.I)
+
 
 class StaticAnalyzer:
     def __init__(self, project_root: Path, out_dir: Path, guard: ScopeGuard):
@@ -68,10 +71,16 @@ class StaticAnalyzer:
                     "body_fields": record.get("body_fields") or [],
                     "kind": record.get("kind"),
                 })
-            if not candidates:
-                fallback_candidates, fallback_chunks = self._regex_fallback(script)
-                candidates.extend(fallback_candidates)
-                chunks.extend(fallback_chunks)
+            # Merge regex discoveries even if AST succeeded: WebSocket/EventSource
+            # constructors and some wrappers are not AST-supported yet.
+            fallback_candidates, fallback_chunks = self._regex_fallback(script)
+            seen = {(row["method"], row["url"]) for row in candidates}
+            for row in fallback_candidates:
+                key = (row["method"], row["url"])
+                if key not in seen:
+                    candidates.append(row)
+                    seen.add(key)
+            chunks.extend(fallback_chunks)
             resolved_chunks = [self._resolve(x, script.url) for x in chunks]
             return candidates, [x for x in resolved_chunks if x and self.guard.is_allowed(x)]
         except (OSError, subprocess.SubprocessError, json.JSONDecodeError, ValueError):
@@ -105,12 +114,15 @@ class StaticAnalyzer:
             for match in pattern.finditer(script.content):
                 method = (match.group(method_group) or default_method).upper()
                 raw_url = match.group(url_group)
-                matches.append((match.start(), method, raw_url))
-        for position, method, raw_url in sorted(matches):
+                matches.append((match.start(), method, raw_url, False))
+        for pattern, method in ((_WS_CALL, "WS"), (_SSE_CALL, "GET")):
+            for match in pattern.finditer(script.content):
+                matches.append((match.start(), method, match.group(1), True))
+        for position, method, raw_url, explicit_protocol in sorted(matches):
             resolved = self._resolve(raw_url, script.url)
             if not resolved or not self.guard.is_allowed(resolved):
                 continue
-            if not self._looks_like_api(urlsplit(resolved).path, method):
+            if not explicit_protocol and not self._looks_like_api(urlsplit(resolved).path, method):
                 continue
             line = script.content.count("\n", 0, position) + 1
             snippet = lines[line - 1].strip()[:300] if line <= len(lines) else ""

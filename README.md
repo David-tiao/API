@@ -50,7 +50,7 @@
 ## 3. Linux 环境要求
 
 - Linux x86_64（建议 Ubuntu 22.04/24.04 或兼容发行版）
-- Python 3.11 或更新版本
+- Python 3.11 或更新版本（仅本地虚拟环境模式需要；Docker 模式使用容器内 Python）
 - Node.js 与 npm
 - Git（可选，初始化脚本会在可用时初始化仓库）
 - Docker Engine（可选；使用 Docker 模式时需要）
@@ -71,7 +71,7 @@ node --version
 npm --version
 ```
 
-`python3` 必须为 3.11 或更新版本。若发行版仓库提供的 Python 版本较旧，请先安装 Python 3.11+，再继续执行初始化。
+仅在运行本地初始化脚本时，`python3` 必须为 3.11 或更新版本。**Ubuntu 22.04 宿主机使用 Docker 时无需升级系统 Python**。
 
 ## 4. 解压到指定目录
 
@@ -127,7 +127,7 @@ sudo .venv/bin/python -m playwright install-deps chromium
 .venv/bin/python -m playwright install chromium
 ```
 
-如果使用 Docker 模式，Dockerfile 会在构建镜像时安装 Chromium 及其系统依赖。
+Docker 模式使用固定版本的 Playwright 官方 Ubuntu Noble 浏览器基础镜像，构建时不再执行 `playwright install --with-deps chromium`。仍需网络访问 Docker 基础镜像仓库、PyPI 和 npm。
 
 ## 6. 一键启动 API 提取
 
@@ -254,3 +254,21 @@ out/
 ## 12. 开发过程证据
 
 保留完整 Git commit 历史，不要 squash 为单次提交。保存设计笔记、中间草稿、测试输出和关键节点截图。评审可能要求解释任意函数的实现与设计取舍。
+
+
+## 13. 当前修复记录与验收（请先看）
+
+在 [docs/FIXES_AND_LESSONS.md](docs/FIXES_AND_LESSONS.md) 中记录了已经复现的缺陷、修复方案、未验证项与工程经验。新增的 `tests/test_contract_regressions.py` 和 `tests/test_integration_local_http.py` 用于回归验证，不应把单元测试通过理解成所有 S1～S5 站点评分合格。
+
+建议依次执行：
+
+```bash
+bash scripts/diagnose_environment_stage10.sh build
+bash scripts/diagnose_environment_stage10.sh test
+# 仅对自己部署或获得明确授权的练习站点运行：
+bash scripts/acceptance_stage10.sh https://你的授权站点/ ./site.json 180
+```
+
+`acceptance_stage10.sh` 会将两次独立运行的输出放在 `out/acceptance/`，并检查镜像大小、Schema、日志、证据链接与结果稳定性。它不会更改 Docker 服务或关闭其他容器。
+
+**AI 使用补充声明：** 2026-11-22 期间使用 OpenAI ChatGPT 辅助完成运行契约与作用域修复、S4/S5 基础识别扩展、测试脚本和问题记录。提交者仍须对全部代码进行个人理解、真实环境复现、来源核对和最终答辩；正式提交前应按实际情况完善本声明。
