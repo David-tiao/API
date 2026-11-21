@@ -282,3 +282,10 @@ bash scripts/acceptance_stage10.sh https://你的授权站点/ ./site.json 180
 ## 15. 版本更迭记录
 
 所有版本阶段与实际 Git 提交的对应关系、各次 AI 辅助修改原因、涉及文件、验证状态及遗留问题，统一维护在 [docs/CHANGELOG.md](docs/CHANGELOG.md)。阶段编号不是软件发行版本，当前工具版本仍为 `0.1.0`。
+
+
+## 16. V8：可靠运行状态与部分结果交付
+
+本次迭代不改变命令行参数或输出 JSON Schema。完成后可通过 `tool.log` 中最后的 `run_status:` 记录区分 `completed`、`partial_browser_failure`、`incomplete_budget` 和 `failed`。**根据评测细则 R2，部分但合法的结果允许退出码 0；应同时检查日志状态，不应把退出码 0 当作浏览器阶段全部成功。**
+
+详细改动、对应提交和测试依据见 [docs/CHANGELOG.md](docs/CHANGELOG.md) 的 V8 记录。本轮新增 `tests/test_run_outcomes.py` 回归测试；真实 Docker 和陌生站点表现仍待验证。

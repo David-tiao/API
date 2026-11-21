@@ -4,6 +4,38 @@
 > 记录日期：2026-11-22（Asia/Singapore）  
 > **说明**：以下“V0～V7”是便于理解的**开发迭代阶段编号**，不是正式 Git Tag 或发布版本号。当前 `pyproject.toml` 中的软件版本仍为 `0.1.0`，不要把阶段编号当作发行版本。
 
+## 最新迭代：V8 · 运行状态与部分结果可靠性（2026-11-22）
+
+**代码提交**：[3e3193822](https://github.com/David-tiao/API/commit/3e3193822ed8ae78ee353ece00becc133adb4659)  
+**改动类型**：可靠性修复（不增加服务、不改变 CLI / Schema / Dockerfile）  
+**涉及文件**：`api_extractor/dynamic_analysis.py`、`api_extractor/pipeline.py`、`tests/test_run_outcomes.py`
+
+### 修复动机和技术依据
+
+1. 以前 Playwright 启动异常时，`DynamicAnalyzer.run()` 只记录 `browser_phase_error` 并返回空列表；`pipeline.py` 无法区分“没有动态接口”和“浏览器根本没有启动”。
+2. 以前所有页面的 `page.goto()` 都失败时，代码仍可能走到正常结束分支。
+3. 以前 `asyncio.wait_for()` 预算中断后，已经观测到的动态请求可能只保存在 `dynamic.records`，却没有进入最终候选列表。
+4. 考核细则 **R2** 要求退出码为 0 且输出 Schema 合法，**R3** 要求预算内落盘。因此不能把“浏览器部分失败”和“完全失败”简单混为一个非零退出码，否则可能丢失本可交付的静态结果。
+
+### 具体实现
+
+- 浏览器新增 `failure_reason` 阶段状态：启动异常记录异常类型；12 个以内的页面访问若全部失败，记录 `NoPagesLoaded`，并写出页面级失败日志。
+- 主流程在 `wait_for` 之后统一汇总静态候选与已抓到的动态记录，仍进行域名过滤、路径归一化和 EvidenceAuditor 审计。
+- `tool.log` 末尾新增可机器识别的 `verify` 事件 `run_status:<状态>`：
+  - `completed`：没有检测到浏览器阶段故障，正常输出；退出码 **0**；
+  - `partial_browser_failure`：浏览器阶段失败，但至少有一条经过审计的 API；退出码 **0**（按 R2 交付部分成果，**不表示全流程成功**）；
+  - `incomplete_budget`：达到内部预算截止点，已落盘当前结果；退出码 **0**（R2 / R3；不等于完整覆盖）；
+  - `failed`：浏览器失败且没有有效 API，或管线/输出发生严重异常；退出码 **1**。
+- `result.json` 字段、`tool.log` 原有请求格式保持不变；没有添加运行期外部服务。
+
+### 离线验证
+
+本轮在隔离 Python 环境使用 `python -m pytest -q` 执行 **35 项测试，通过**（原有 28 项 + 新增 7 项）。新增测试覆盖：浏览器启动失败、全部导航失败、正常完成、浏览器失败但静态结果可交付、无有效结果的硬失败、预算截断保留静态证据、预算截断保留已完成的动态 HAR/日志证据。另执行 `python -m compileall -q api_extractor`，通过。
+
+**边界**：采用本地工作副本和模拟浏览器/HTTP 夹具，未执行真实 Chromium、Docker 构建、组织方隐藏 S1～S5 站点，也未证明真实网络下所有超时都能遵守预算。不能以这些离线测试替代最终验收。
+
+**回退定位**：本功能的代码变更可从上述提交 diff 查看；本记录单独提交，并与该提交对应。
+
 ## 1. 阅读本记录的规则
 
 本文件独立记录**每次修改的原因、改动内容、涉及代码、验证依据、剩余风险**，以 GitHub 提交为最终可追溯来源。完整系统设计和算法见 [项目迭代、架构与底层算法](PROJECT_ITERATIONS_ARCHITECTURE_ALGORITHMS.md)；技术问题及经验见 [修复与经验](FIXES_AND_LESSONS.md)。
@@ -26,6 +58,7 @@
 | V5 | [`043d2b2`](https://github.com/David-tiao/API/commit/043d2b2f230ae3ca286926c5da02e410672a9535) | S5 WebSocket/SSE 静态入口补全 | 协议识别 | 仅覆盖可静态定位的入口 |
 | V6 | [`ba07d6e`](https://github.com/David-tiao/API/commit/ba07d6e2636bd13c34e111cbdb86180a626df01a) | 引入 EvidenceAuditor 独立证据审计 | 架构演进 | 验证引用一致性，不是端点可重放 |
 | V7 | [`5659d284`](https://github.com/David-tiao/API/commit/5659d2846572f9e43ce353d25d5c267b16360139) | 正式记录架构、算法及迭代依据 | 工程文档 | 文字对照源码，不是运行测试 |
+| V8 | [`3e3193822`](https://github.com/David-tiao/API/commit/3e3193822ed8ae78ee353ece00becc133adb4659) | 失败状态显式报告、预算取消保留部分 API | 可靠性与 R2 适配 | 35 项离线测试；真实 Docker 待验收 |
 
 以上提交按**实现顺序**排列。GitHub 原始提交时间统一以 Git 元数据为准；2026-11-21 UTC 的提交对应新加坡时间 2026-11-21 至 22 日。
 

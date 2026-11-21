@@ -138,9 +138,15 @@ Node `@babel/parser` 将前端 JS 解析为语法树，识别 `fetch`、`axios.g
 | 构建缺锁文件 | Dockerfile 最终镜像复制 `package-lock.json` | 实际联网构建仍可能失败 |
 | 证据引用造假风险 | 新增 EvidenceAuditor + 测试验证文件归属、索引、请求一致性 | 尚未证明真实目标的证据都可重放 |
 
+## 5.1 V8 的可靠性增强：任务状态与部分结果
+
+新增浏览器 `failure_reason` 和管线 `run_status` 状态，区分完整完成、浏览器部分失败、预算截断与严重失败。流程即使因预算被取消，也尝试把已完成的动态观察与静态证据一起审计并输出。**考核 R2 要求合法交付的退出码为 0，因此部分结果可以退出 0，但日志必须明确标记并非完整成功。**
+
+技术理由和离线验收记录见 [CHANGELOG.md](CHANGELOG.md) 的 V8，以及 [FIXES_AND_LESSONS.md](FIXES_AND_LESSONS.md) 的第 11 节。
+
 ## 6. 当前验证等级与未解决问题
 
-本轮不扫描真实网站、不运行 Docker/Chromium。离线 Python 测试和本地模拟 HTTP 夹具 **共 28 项通过**，Python `compileall` 及 Bash 语法检查通过。测试新增了证据文件缺失、路径穿越、越界 symlink、HAR 错索引、错 Method、日志缺失及 WS/GQL 映射等场景。
+本轮不扫描真实网站、不运行 Docker/Chromium。隔离 Python 工作副本的离线测试和本地模拟 HTTP 夹具 **共 35 项通过**，Python `compileall` 及 Bash 语法检查通过。测试新增了证据文件缺失、路径穿越、越界 symlink、HAR 错索引、错 Method、日志缺失及 WS/GQL 映射等场景。
 
 **明确未验证**：Docker 实际构建与镜像大小/耗时、Chromium 真正运行、S1～S5 的 Recall/Precision、双轮评测稳定性、真实代理的 R4/R8、系统级 R7 文件审计。这些不能据静态代码推断为 PASS。
 

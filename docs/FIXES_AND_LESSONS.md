@@ -98,3 +98,15 @@ docker run --rm --pull=never api-extractor:0.1.0 --help
 隔离环境新增 7 项证据审计测试；本轮总计 **28 项单元和本地模拟 HTTP 测试通过**，并通过 Python/Bash 语法检查。Docker、真实 Chromium 和外部练习站点没有测试。
 
 系统设计、迭代时间线及底层算法详见 [PROJECT_ITERATIONS_ARCHITECTURE_ALGORITHMS.md](PROJECT_ITERATIONS_ARCHITECTURE_ALGORITHMS.md)。
+
+## 11. V8：浏览器失败、预算中断与 R2 的契约权衡（2026-11-22）
+
+**根因**：浏览器启动失败被 `DynamicAnalyzer.run()` 捕获后只写日志、返回空记录；所有页面导航失败也可能不影响主流程的完成判断。同时，预算取消时，已观察到的请求可能仅位于 `dynamic.records`。若为所有部分失败返回非零退出码，又会违反考核 R2 对合法部分结果的退出码要求。
+
+**改动**：新增阶段属性 `failure_reason`、全部页面访问失败识别；管线统一把已经捕获的动态记录加入候选；在日志中明确写入 `run_status:completed | partial_browser_failure | incomplete_budget | failed`。浏览器失败但有至少一条经 EvidenceAuditor 审查的 API，返回 0 并标记部分完成；浏览器失败且无可交付条目或严重管线错误，则返回 1。预算中断输出当前合法结构并返回 0，日志标记不完整。
+
+**为什么更可靠**：消除了“完全不知道浏览器失败”的静默状态，同时不丢失静态提取成果及中断前完成的动态请求证据，并符合 R2/R3 的实际交付口径。**退出码 0 只是合法交付，不再被用作‘全部阶段成功’的唯一依据**。
+
+**验证**：新增 `tests/test_run_outcomes.py` 的 7 项离线回归，包含模拟启动失败、全导航失败、预算中断、静态/动态证据保留、成功和失败状态；隔离环境累计 35 项 `pytest` 测试通过，`compileall` 通过。**未做真实浏览器/真实站点测试**。
+
+**后续风险**：动态监控尚不能保证复杂登录、WS 长连接与进程外超时的每一种情况；必须在真实 Docker/代理与授权练习站点验证 R2/R3/R4。
