@@ -277,3 +277,8 @@ bash scripts/acceptance_stage10.sh https://你的授权站点/ ./site.json 180
 ## 14. 项目迭代与底层算法
 
 阅读 [docs/PROJECT_ITERATIONS_ARCHITECTURE_ALGORITHMS.md](docs/PROJECT_ITERATIONS_ARCHITECTURE_ALGORITHMS.md)，了解迭代历史、架构数据流、AST/正则/Playwright/归一化/证据审计的设计依据，以及真实验证与当前缺口的区别。
+
+
+## 15. 版本更迭记录
+
+所有版本阶段与实际 Git 提交的对应关系、各次 AI 辅助修改原因、涉及文件、验证状态及遗留问题，统一维护在 [docs/CHANGELOG.md](docs/CHANGELOG.md)。阶段编号不是软件发行版本，当前工具版本仍为 `0.1.0`。

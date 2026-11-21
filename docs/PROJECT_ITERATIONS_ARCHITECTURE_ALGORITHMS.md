@@ -24,6 +24,8 @@
 
 问题明细与工程经验持续维护在 [FIXES_AND_LESSONS.md](FIXES_AND_LESSONS.md)。这些提交均为开发记录，不构成评分保证。
 
+更细的逐提交变更文件、原因和验收状态，请参阅 [CHANGELOG.md](CHANGELOG.md)。
+
 ## 3. 总体架构与数据流
 
 ```mermaid
