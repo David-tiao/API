@@ -47,9 +47,11 @@ async def run_pipeline(target: str, config_path: str, out_path: str, budget: int
     logger = JsonlLogger(out_dir / "tool.log")
     site_name = urlsplit(target).hostname or "unknown"
     exit_code = 0
+    outcome = "completed"
     endpoints: list[dict] = []
     config = None
     dynamic_records: list[dict] = []
+    dynamic: DynamicAnalyzer | None = None
     har_path = out_dir / "evidence" / "dynamic.har"
     try:
         _validate_mount_paths(Path(config_path), destination)
@@ -60,7 +62,7 @@ async def run_pipeline(target: str, config_path: str, out_path: str, budget: int
         candidates: list[dict] = []
 
         async def stages():
-            nonlocal dynamic_records
+            nonlocal dynamic_records, dynamic
             async with ResourceCrawler(target, config, guard, gate, logger, out_dir) as crawler:
                 crawl = await crawler.crawl()
                 analyzer = StaticAnalyzer(project_root, out_dir, guard)
@@ -94,24 +96,34 @@ async def run_pipeline(target: str, config_path: str, out_path: str, budget: int
 
                 dynamic = DynamicAnalyzer(target, config, guard, gate, logger, out_dir)
                 dynamic_records = await dynamic.run([page.url for page in crawl.pages] + crawl.links[:8])
-                for row in dynamic_records:
-                    # Static resources, documents and navigations are intentionally excluded.
-                    if row.get("resource_type") not in {"fetch", "xhr", "eventsource", "websocket"}:
-                        continue
-                    candidates.append({
-                        "method": row.get("method") or row.get("http_method") or "GET",
-                        "url": row["url"], "source": "dynamic", "confidence": 0.96,
-                        "headers": row.get("headers") or {}, "post_data": row.get("post_data"),
-                        "response_content_type": row.get("response_content_type"),
-                        "response_fields": row.get("response_fields") or [],
-                        "status": row.get("status"),
-                        "request_index": row.get("request_index", 0), "note": row.get("note"),
-                    })
 
         try:
             await asyncio.wait_for(stages(), timeout=max(0.1, float(budget) - min(3.0, budget * 0.2)))
         except asyncio.TimeoutError:
+            # The evaluation contract R2 requires exit code 0 for a valid partial
+            # deliverable. Record the truncation explicitly instead.
+            outcome = "incomplete_budget"
             logger.write("-", target, 0, "verify", note="budget_exhausted_partial_results_preserved")
+
+        if dynamic is not None:
+            # Playwright may have observed requests before wait_for cancelled it.
+            dynamic_records = dynamic_records or dynamic.records
+            if getattr(dynamic, "failure_reason", None):
+                if outcome == "completed":
+                    outcome = "partial_browser_failure"
+                logger.write("-", target, 0, "verify", note=f"dynamic_phase_failed:{dynamic.failure_reason}")
+        for row in dynamic_records:
+            if row.get("resource_type") not in {"fetch", "xhr", "eventsource", "websocket"}:
+                continue
+            candidates.append({
+                "method": row.get("method") or row.get("http_method") or "GET",
+                "url": row["url"], "source": "dynamic", "confidence": 0.96,
+                "headers": row.get("headers") or {}, "post_data": row.get("post_data"),
+                "response_content_type": row.get("response_content_type"),
+                "response_fields": row.get("response_fields") or [],
+                "status": row.get("status"),
+                "request_index": row.get("request_index", 0), "note": row.get("note"),
+            })
 
         # Every dynamic evidence reference points to the HAR created by the browser phase.
         if dynamic_records and not har_path.exists():
@@ -127,10 +139,16 @@ async def run_pipeline(target: str, config_path: str, out_path: str, budget: int
                 f"evidence_audit:invalid_references={invalid_refs},dropped_endpoints={dropped}"
             ))
         site_name = config.site_id or site_name
+        # Browser errors cannot erase verified static results. When the browser
+        # failed and no evidence survived, however, the job genuinely failed.
+        if outcome == "partial_browser_failure" and not endpoints:
+            exit_code = 1
+            outcome = "failed"
     except Exception as exc:
         logger.write("-", target, 0, "verify", note=f"pipeline_error:{type(exc).__name__}:{str(exc)[:180]}")
         endpoints = []
         exit_code = 1
+        outcome = "failed"
     finally:
         try:
             result = build_result(site_name, endpoints)
@@ -140,6 +158,8 @@ async def run_pipeline(target: str, config_path: str, out_path: str, budget: int
             fallback = build_result(site_name, [])
             # Keep schema-valid fallback, but report the error to the caller.
             exit_code = 1
+            outcome = "failed"
             write_result(destination, fallback)
+        logger.write("-", target, 0, "verify", note=f"run_status:{outcome}")
         logger.close()
     return exit_code

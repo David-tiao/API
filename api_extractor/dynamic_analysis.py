@@ -63,6 +63,8 @@ class DynamicAnalyzer:
         self._request_map: dict[int, dict] = {}
         self._tasks: set[asyncio.Task] = set()
         self._limiter = BrowserRequestLimiter(gate)
+        # None indicates that the browser phase completed without a phase error.
+        self.failure_reason: str | None = None
 
     async def _login(self, page, context) -> None:
         if not self.config.credentials:
@@ -100,6 +102,7 @@ class DynamicAnalyzer:
 
     async def run(self, pages: list[str]) -> list[dict]:
         browser = None
+        self.failure_reason = None
         try:
             async with async_playwright() as playwright:
                 launch_args = {"headless": True}
@@ -266,24 +269,33 @@ class DynamicAnalyzer:
                 for url in [self.target, *pages]:
                     if url not in visit_list and self.guard.is_allowed(url):
                         visit_list.append(url)
+                successful_navigations = 0
                 for url in visit_list[:12]:
                     try:
                         start_index = len(self.records)
-                        await page.goto(url, wait_until="domcontentloaded", timeout=15000)
+                        response = await page.goto(url, wait_until="domcontentloaded", timeout=15000)
+                        if response is not None and response.status >= 400:
+                            self.logger.write("GET", url, response.status, "dynamic", note="page_http_error")
+                            continue
+                        successful_navigations += 1
                         try:
                             await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
                         except Exception:
                             pass
                         await self._settle_page(start_index)
-                    except Exception:
-                        continue
+                    except Exception as exc:
+                        self.logger.write("GET", url, 0, "dynamic", note=f"page_navigation_failed:{type(exc).__name__}")
+                if successful_navigations == 0:
+                    self.failure_reason = "NoPagesLoaded"
+                    self.logger.write("-", self.target, 0, "dynamic", note="browser_phase_error:NoPagesLoaded")
                 if self._tasks:
                     await asyncio.gather(*list(self._tasks), return_exceptions=True)
                 await context.close()
                 await browser.close()
                 browser = None
         except Exception as exc:
-            self.logger.write("-", self.target, 0, "dynamic", note=f"browser_phase_error:{type(exc).__name__}")
+            self.failure_reason = type(exc).__name__
+            self.logger.write("-", self.target, 0, "dynamic", note=f"browser_phase_error:{self.failure_reason}")
         finally:
             self._limiter.close()
             if browser:
