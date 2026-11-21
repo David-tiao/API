@@ -88,3 +88,13 @@ docker run --rm --pull=never api-extractor:0.1.0 --help
 发现部分前端仅通过 `new WebSocket(url)`、`new EventSource(url)` 声明实时通道，现有静态请求模式容易遗漏。因此在正则后备分析中识别字符串形式的 WebSocket（`WS`）和 SSE（`GET`）入口，并和 AST 结果合并去重，防止 AST 先发现其他接口时跳过这两类通道。新增两项测试验证 S5 地址发现和越界过滤。
 
 **限制：** 动态拼接的 WebSocket URL、帧内完整订阅载荷、GraphQL 变量类型及签名复现仍需要进一步完善和真实授权站点验证。此处“发现入口”不等于高级协议全部实现。
+
+## 10. 证据审计模块（新增）
+
+新增 `api_extractor/evidence.py`，在 `pipeline.py` 归一化后、写入结果前运行：验证证据来源属于 `/out`，拒绝缺失、路径穿越和越界符号链接；验证 HAR 请求索引、Method/Host/Path 及 `tool.log` 中实际动态请求。仅移除无效引用，失去全部证据的 API 不输出，问题数量写入 `verify` 日志。
+
+这是面向 R6 和证据链评分的架构加固：**源码中声明过某个接口不等于网络实际调用**。它只能改善引用的一致性，无法替代接口可达性测试、签名重放和实际 S1～S5 评测。
+
+隔离环境新增 7 项证据审计测试；本轮总计 **28 项单元和本地模拟 HTTP 测试通过**，并通过 Python/Bash 语法检查。Docker、真实 Chromium 和外部练习站点没有测试。
+
+系统设计、迭代时间线及底层算法详见 [PROJECT_ITERATIONS_ARCHITECTURE_ALGORITHMS.md](PROJECT_ITERATIONS_ARCHITECTURE_ALGORITHMS.md)。

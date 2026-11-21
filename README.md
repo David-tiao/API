@@ -272,3 +272,8 @@ bash scripts/acceptance_stage10.sh https://你的授权站点/ ./site.json 180
 `acceptance_stage10.sh` 会将两次独立运行的输出放在 `out/acceptance/`，并检查镜像大小、Schema、日志、证据链接与结果稳定性。它不会更改 Docker 服务或关闭其他容器。
 
 **AI 使用补充声明：** 2026-11-22 期间使用 OpenAI ChatGPT 辅助完成运行契约与作用域修复、S4/S5 基础识别扩展、测试脚本和问题记录。提交者仍须对全部代码进行个人理解、真实环境复现、来源核对和最终答辩；正式提交前应按实际情况完善本声明。
+
+
+## 14. 项目迭代与底层算法
+
+阅读 [docs/PROJECT_ITERATIONS_ARCHITECTURE_ALGORITHMS.md](docs/PROJECT_ITERATIONS_ARCHITECTURE_ALGORITHMS.md)，了解迭代历史、架构数据流、AST/正则/Playwright/归一化/证据审计的设计依据，以及真实验证与当前缺口的区别。
