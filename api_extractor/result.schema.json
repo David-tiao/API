@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["site", "generated_at", "tool_version", "endpoints"],
+  "properties": {
+    "site": {"type": "string"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "tool_version": {"type": "string"},
+    "endpoints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["method", "path", "host", "auth", "params", "evidence"],
+        "properties": {
+          "method": {"enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "WS", "GQL"]},
+          "path": {"type": "string", "pattern": "^/"},
+          "host": {"type": "string", "minLength": 1},
+          "auth": {"enum": ["none", "cookie", "bearer", "apikey", "sign"]},
+          "params": {
+            "type": "object",
+            "required": ["path", "query", "body"],
+            "properties": {
+              "path": {"type": "array", "items": {"$ref": "#/$defs/param"}},
+              "query": {"type": "array", "items": {"$ref": "#/$defs/param"}},
+              "body": {"type": "array", "items": {"$ref": "#/$defs/param"}}
+            }
+          },
+          "response": {
+            "type": "object",
+            "required": ["content_type", "fields"],
+            "properties": {
+              "content_type": {"type": "string"},
+              "fields": {"type": "array", "items": {"type": "string"}}
+            }
+          },
+          "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+          "evidence": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["type", "file"],
+              "properties": {
+                "type": {"type": "string"},
+                "file": {"type": "string"},
+                "loc": {"type": "string"},
+                "request_index": {"type": "integer", "minimum": 0},
+                "snippet": {"type": "string"}
+              }
+            }
+          },
+          "note": {"type": "string"}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "param": {
+      "type": "object",
+      "required": ["name", "type", "required"],
+      "properties": {
+        "name": {"type": "string"},
+        "type": {"type": "string"},
+        "required": {"type": "boolean"}
+      }
+    }
+  }
+}

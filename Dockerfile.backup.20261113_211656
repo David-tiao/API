@@ -1,0 +1,39 @@
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates nodejs npm curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY requirements.txt ./requirements.txt
+RUN set -eux; \
+    sed -i \
+      -e 's|http://deb.debian.org/debian-security|https://mirrors.tuna.tsinghua.edu.cn/debian-security|g' \
+      -e 's|http://deb.debian.org/debian|https://mirrors.tuna.tsinghua.edu.cn/debian|g' \
+      -e 's|http://security.debian.org/debian-security|https://mirrors.tuna.tsinghua.edu.cn/debian-security|g' \
+      /etc/apt/sources.list.d/debian.sources; \
+    printf 'Acquire::Retries "5";\nAcquire::https::Timeout "45";\n' \
+      > /etc/apt/apt.conf.d/80retry; \
+    apt-get update
+
+RUN python -m pip install --upgrade pip \
+    && python -m pip install -r requirements.txt \
+    && python -m playwright install --with-deps chromium
+
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+
+COPY api_extractor ./api_extractor
+COPY tools ./tools
+COPY README.md ./README.md
+
+RUN mkdir -p /out /cfg \
+    && chmod -R a+rX /app
+
+ENTRYPOINT ["python", "-m", "api_extractor.cli"]

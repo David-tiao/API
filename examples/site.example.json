@@ -1,0 +1,8 @@
+{
+  "site_id": "local-practice",
+  "entry": "http://127.0.0.1:3000/",
+  "credentials": [],
+  "headers": {},
+  "allowed_hosts": ["127.0.0.1"],
+  "notes": "仅用于本地自建练习站点；正式评测时由组织方提供该文件。"
+}

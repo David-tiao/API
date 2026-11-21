@@ -1,0 +1,9 @@
+{
+  "name": "api-extractor-ast",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Babel parser used by the API Extractor static analysis stage",
+  "dependencies": {
+    "@babel/parser": "7.28.4"
+  }
+}

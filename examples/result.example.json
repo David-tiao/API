@@ -1,0 +1,27 @@
+{
+  "site": "local-practice",
+  "generated_at": "2026-11-06T11:00:00+08:00",
+  "tool_version": "0.1.0",
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/api/v1/users/{id}",
+      "host": "app.example.lab",
+      "auth": "bearer",
+      "params": {
+        "path": [{"name": "id", "type": "string", "required": true}],
+        "query": [{"name": "page", "type": "integer", "required": false}],
+        "body": []
+      },
+      "response": {
+        "content_type": "application/json",
+        "fields": ["code", "data", "data.id", "data.name"]
+      },
+      "confidence": 0.96,
+      "evidence": [
+        {"type": "har", "file": "evidence/dynamic.har", "request_index": 0}
+      ],
+      "note": "Potential user resource operation inferred from the request path"
+    }
+  ]
+}
