@@ -8,6 +8,7 @@ from urllib.parse import urlsplit
 from .config import load_site_config
 from .crawler import ResourceCrawler
 from .dynamic_analysis import DynamicAnalyzer
+from .evidence import audit_endpoints
 from .jsonl_logger import JsonlLogger
 from .normalization import normalize_candidates
 from .output import build_result, write_result
@@ -120,6 +121,11 @@ async def run_pipeline(target: str, config_path: str, out_path: str, budget: int
         # Remove candidates outside the exact configured scope before normalization.
         scoped = [c for c in candidates if guard.is_allowed(str(c.get("url") or ""))]
         endpoints = normalize_candidates(scoped)
+        endpoints, invalid_refs, dropped = audit_endpoints(endpoints, out_dir)
+        if invalid_refs or dropped:
+            logger.write("-", target, 0, "verify", note=(
+                f"evidence_audit:invalid_references={invalid_refs},dropped_endpoints={dropped}"
+            ))
         site_name = config.site_id or site_name
     except Exception as exc:
         logger.write("-", target, 0, "verify", note=f"pipeline_error:{type(exc).__name__}:{str(exc)[:180]}")
