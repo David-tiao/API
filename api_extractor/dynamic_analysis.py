@@ -129,8 +129,9 @@ class DynamicAnalyzer:
                     if not self.guard.is_allowed(websocket_route.url):
                         await websocket_route.close()
                         return
-                    async with self.gate.slot():
-                        await websocket_route.connect_to_server()
+                    # A WebSocket handshake is a single connection; do not let it
+                    # starve behind the shared HTTP concurrency gate.
+                    websocket_route.connect_to_server()
 
                 # Playwright 1.55 supports explicit WebSocket routing; fail closed if unavailable.
                 if not hasattr(context, "route_web_socket"):
@@ -205,6 +206,9 @@ class DynamicAnalyzer:
 
                 def on_failed(request):
                     self._limiter.after(id(request))
+                    row = self._request_map.get(id(request))
+                    if row and row.get("status") == 0:
+                        row["status"] = -1
 
                 def on_websocket(websocket):
                     if not self.guard.is_allowed(websocket.url):
@@ -239,12 +243,13 @@ class DynamicAnalyzer:
                         visit_list.append(url)
                 for url in visit_list[:12]:
                     try:
+                        start_index = len(self.records)
                         await page.goto(url, wait_until="domcontentloaded", timeout=15000)
                         try:
                             await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-                            await page.wait_for_timeout(350)
                         except Exception:
                             pass
+                        await self._settle_page(start_index)
                     except Exception:
                         continue
                 if self._tasks:
@@ -263,6 +268,34 @@ class DynamicAnalyzer:
                     pass
             self._write_har()
         return self.records
+
+    async def _settle_page(self, start_index: int, timeout_seconds: float = 5.0) -> None:
+        """Wait until the requests fired by the current page settle.
+
+        A fixed short wait loses response bodies on API-heavy pages. Wait for
+        in-flight fetch/XHR/SSE requests to finish, with a bounded timeout so a
+        long-lived stream cannot stall the whole run.
+        """
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + timeout_seconds
+        last_count = len(self.records)
+        stable_since = None
+        while loop.time() < deadline:
+            await asyncio.sleep(0.1)
+            current_count = len(self.records)
+            pending = any(
+                row.get("status") == 0
+                for row in self.records[start_index:]
+                if row.get("resource_type") in {"fetch", "xhr", "eventsource"}
+            )
+            if current_count == last_count and not pending:
+                if stable_since is None:
+                    stable_since = loop.time()
+                elif loop.time() - stable_since >= 0.3:
+                    return
+            else:
+                stable_since = None
+                last_count = current_count
 
     def _schedule(self, coroutine) -> None:
         task = asyncio.create_task(coroutine)
