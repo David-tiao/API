@@ -34,7 +34,7 @@ docker build -t api-extractor:0.1.0 .
 docker run --rm --pull=never api-extractor:0.1.0 --help
 ```
 
-本轮在隔离 Python 环境运行了 17 项单元测试，全部通过；`compileall` 和 Bash 语法检查也通过（动态分析模块的浏览器生命周期仍需真实 Chromium 实测）。这不是对 GitHub CI、Docker 构建或隐藏靶场的通过声明。所有未执行项必须在实际 Ubuntu/Docker 环境运行后再勾选。
+本轮在隔离 Python 环境运行了 19 项单元/本地集成测试，全部通过；`compileall` 和 Bash 语法检查也通过（动态分析模块的浏览器生命周期仍需真实 Chromium 实测）。这不是对 GitHub CI、Docker 构建或隐藏靶场的通过声明。所有未执行项必须在实际 Ubuntu/Docker 环境运行后再勾选。
 
 ## 4. S1～S5 功能覆盖与剩余缺口
 
@@ -67,3 +67,11 @@ docker run --rm --pull=never api-extractor:0.1.0 --help
 - [ ] 检查 README 中 AI 辅助声明、第三方 License、个人原创提交证据与提交时间规则。
 
 **状态：本轮属于针对已知问题的实现和局部回归测试，不等于最终综合考核 PASS。**
+
+## 7. 追加修复与验收工具
+
+- POST 的 JSON/form Body 中 `signature`、`sign` 等签名字段现在参与 `auth=sign` 推断；排除 `design` 等普通字段的误判。仅推断签名存在，不伪称已还原签名算法。
+- 新增 `tests/test_integration_local_http.py`，使用真实本地 HTTP 服务器运行静态采集→证据→JSON 全链路；浏览器阶段在此测试中显式替换为无操作 stub。
+- 新增 `scripts/acceptance_stage10.sh`。使用明确授权的目标和现有 Docker 镜像独立执行两次，核查容器退出状态、镜像体积、Schema、`tool.log`、证据路径/HAR 索引、两次输出差异；仅写入 `out/acceptance/`，不修改 Docker 服务或其他容器。
+- 使用方法：`bash scripts/acceptance_stage10.sh https://你的授权练习站点/ ./site.json 180`。必要时环境变量 `API_EXTRACTOR_NETWORK=bench-net` 指向已存在的 Docker 网络。
+- **验证边界：**本次本地 Python 3.13 环境完成 19 项测试与源码语法验证；此验收脚本仅通过 Bash 语法和帮助输出检查，因当前容器没有 Docker daemon，未执行真实 Docker 双轮验收。

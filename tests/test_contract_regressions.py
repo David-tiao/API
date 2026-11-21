@@ -69,3 +69,14 @@ def test_pipeline_rejects_outside_output_before_write(tmp_path, monkeypatch):
     with pytest.raises(ValueError):
         asyncio.run(run_pipeline("https://app.example.com/", "ignored", str(target), 3))
     assert not target.parent.exists()
+
+
+def test_signature_in_body_detected_without_leaking_values():
+    from api_extractor.normalization import infer_auth
+    body = '{"signature":"secret-value","nonce":"n1"}'
+    assert infer_auth({}, 'https://app.example.com/api/order', body) == 'sign'
+    assert infer_auth({'X-Design-Theme': 'dark'}, 'https://app.example.com/api/order') == 'none'
+    ep = normalize_candidates([{'source': 'dynamic', 'method': 'POST', 'status': 200,
+        'url': 'https://app.example.com/api/order', 'post_data': body, 'request_index': 0}])[0]
+    assert ep['auth'] == 'sign'
+    assert all('secret-value' not in str(v) for v in ep.values())

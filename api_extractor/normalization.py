@@ -84,9 +84,24 @@ def _merge_fields(*groups: list[dict]) -> list[dict]:
     return [merged[key] for key in sorted(merged)]
 
 
-def infer_auth(headers: dict | None, url: str) -> str:
+def _is_signature_key(name: str) -> bool:
+    # Avoid treating unrelated words such as "design" as a cryptographic signature.
+    normalized = re.sub(r"[^a-z0-9]", "", name.lower())
+    return normalized in {"sign", "signature", "sig", "hmac", "xsign", "xsignature", "checksum"} or normalized.endswith("signature")
+
+
+def infer_auth(headers: dict | None, url: str, post_data: str | None = None) -> str:
     headers = {str(k).lower(): str(v) for k, v in (headers or {}).items()}
-    if any("sign" in k.lower() for k in headers) or any(any(x in k.lower() for x in ("sign", "signature", "timestamp", "nonce")) for k, _ in parse_qsl(urlsplit(url).query)):
+    signed = any(_is_signature_key(k) for k in headers)
+    signed |= any(_is_signature_key(k) for k, _ in parse_qsl(urlsplit(url).query))
+    if post_data:
+        try:
+            data = json.loads(post_data)
+            keys = data.keys() if isinstance(data, dict) else ()
+        except (ValueError, TypeError):
+            keys = (k for k, _ in parse_qsl(post_data, keep_blank_values=True))
+        signed |= any(_is_signature_key(str(k)) for k in keys)
+    if signed:
         return "sign"
     if "authorization" in headers:
         value = headers["authorization"].lower()
@@ -167,7 +182,7 @@ def normalize_candidates(candidates: list[dict]) -> list[dict]:
                 "method": method,
                 "path": path,
                 "host": host,
-                "auth": infer_auth(candidate.get("headers"), url),
+                "auth": infer_auth(candidate.get("headers"), url, candidate.get("post_data")),
                 "params": {"path": path_params, "query": _merge_fields(query), "body": _merge_fields(body)},
                 "evidence": [],
                 "confidence": float(candidate.get("confidence", 0.5)),
@@ -184,7 +199,7 @@ def normalize_candidates(candidates: list[dict]) -> list[dict]:
             entry["params"]["query"] = _merge_fields(entry["params"]["query"], query)
             entry["params"]["body"] = _merge_fields(entry["params"]["body"], body)
             entry["params"]["path"] = _merge_fields(entry["params"]["path"], path_params)
-            new_auth = infer_auth(candidate.get("headers"), url)
+            new_auth = infer_auth(candidate.get("headers"), url, candidate.get("post_data"))
             if new_auth != "none":
                 entry["auth"] = new_auth
             if candidate.get("response_content_type") or candidate.get("response_fields"):
