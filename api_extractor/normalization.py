@@ -116,6 +116,17 @@ def infer_note(path: str) -> str:
 def normalize_candidates(candidates: list[dict]) -> list[dict]:
     merged: dict[tuple[str, str, str], dict] = {}
     for candidate in candidates:
+        # Failed/unfinished browser requests are not proof that an API exists.
+        # Static candidates do not have an HTTP status by definition.
+        if candidate.get("source") == "dynamic":
+            status = candidate.get("status")
+            if status is not None:
+                try:
+                    code = int(status)
+                except (TypeError, ValueError):
+                    continue
+                if code < 100 or (code >= 400 and code not in {401, 403}):
+                    continue
         url = str(candidate.get("url") or "")
         parsed = urlsplit(url)
         if not parsed.hostname or parsed.scheme not in {"http", "https", "ws", "wss"}:

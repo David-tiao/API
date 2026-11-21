@@ -55,6 +55,7 @@ class ScopeGuard:
                 return False
             if self.allowed_hosts:
                 return any(host == allowed or host.endswith("." + allowed) for allowed in self.allowed_hosts)
-            return True
+            # Without an explicit allowlist, sibling domains are not authorized.
+            return host == self.target_host or host.endswith("." + self.target_host)
         except (ValueError, TypeError):
             return False

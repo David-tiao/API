@@ -18,6 +18,7 @@ COPY --from=ast-deps /app/node_modules /app/node_modules
 COPY requirements.txt ./
 RUN python -m pip install --no-cache-dir -r requirements.txt
 
+COPY package-lock.json ./
 COPY api_extractor ./api_extractor
 COPY tools ./tools
 COPY README.md ./

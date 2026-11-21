@@ -33,9 +33,14 @@ async def run_pipeline(target: str, config_path: str, out_path: str, budget: int
     out_dir = destination.parent if destination.suffix else destination
     if destination.suffix == "":
         destination = out_dir / "result.json"
+    # Validate first: do not create files outside the evaluator's /out mount.
+    _validate_mount_paths(Path(config_path), destination)
+    if Path("/out").exists():
+        out_dir = Path("/out")  # R6: tool.log is always /out/tool.log.
     out_dir.mkdir(parents=True, exist_ok=True)
     logger = JsonlLogger(out_dir / "tool.log")
     site_name = urlsplit(target).hostname or "unknown"
+    exit_code = 0
     endpoints: list[dict] = []
     config = None
     dynamic_records: list[dict] = []
@@ -93,11 +98,12 @@ async def run_pipeline(target: str, config_path: str, out_path: str, budget: int
                         "headers": row.get("headers") or {}, "post_data": row.get("post_data"),
                         "response_content_type": row.get("response_content_type"),
                         "response_fields": row.get("response_fields") or [],
+                        "status": row.get("status"),
                         "request_index": row.get("request_index", 0), "note": row.get("note"),
                     })
 
         try:
-            await asyncio.wait_for(stages(), timeout=max(1, int(budget) - 3))
+            await asyncio.wait_for(stages(), timeout=max(0.1, float(budget) - min(3.0, budget * 0.2)))
         except asyncio.TimeoutError:
             logger.write("-", target, 0, "verify", note="budget_exhausted_partial_results_preserved")
 
@@ -113,6 +119,7 @@ async def run_pipeline(target: str, config_path: str, out_path: str, budget: int
     except Exception as exc:
         logger.write("-", target, 0, "verify", note=f"pipeline_error:{type(exc).__name__}:{str(exc)[:180]}")
         endpoints = []
+        exit_code = 1
     finally:
         try:
             result = build_result(site_name, endpoints)
@@ -120,7 +127,8 @@ async def run_pipeline(target: str, config_path: str, out_path: str, budget: int
         except Exception as exc:
             logger.write("-", target, 0, "verify", note=f"output_validation_error:{type(exc).__name__}:{str(exc)[:180]}")
             fallback = build_result(site_name, [])
-            # Empty endpoint output is the safest schema-valid fallback.
+            # Keep schema-valid fallback, but report the error to the caller.
+            exit_code = 1
             write_result(destination, fallback)
         logger.close()
-    return 0
+    return exit_code

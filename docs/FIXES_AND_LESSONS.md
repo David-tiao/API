@@ -1,0 +1,69 @@
+# API Extractor 修复记录与工程经验
+
+> 检查基础：GitHub `David-tiao/API` 的 `main` 分支（修复前 commit `ec1e6c0816`）。
+> 本文记录问题、具体修复、可复现检查和仍未通过的验收项。禁止把静态审查当作隐藏站点的评分结果。
+
+## 1. 范围与原则
+
+本轮仅修复 API 提取工程本身的真实缺陷，不修改其他仓库、不修改用户 Ubuntu 系统配置、不重启 Docker、不清理用户数据。遵循 AI 辅助开发约束中的最小修改、证据保存、三轮审查原则。开发者需要阅读并理解核心实现，提交前如实更新 AI 使用声明。修改记录由 Git 历史保存。
+
+## 2. 已发现问题与修复
+
+| ID | 问题与证据 | 修复文件 | 处理 |
+|---|---|---|---|
+| P0-01 | `pipeline.py` 捕获异常后只输出空 `endpoints`，返回 0，产生假成功 | `api_extractor/pipeline.py` | 出现 pipeline 或输出验证错误时返回非零退出码；保留结构化空结果和日志 |
+| P0-02 | 无 `allowed_hosts` 时 `app.example.com` 可扫描兄弟域名 `api.example.com` | `api_extractor/scope.py` | 默认仅允许目标主机及其子域；显式白名单仍支持同注册域内获授权的兄弟子域 |
+| P0-03 | 自定义 `--out /out/nested/result.json` 时日志被放到 `/out/nested/tool.log`，不符合 R6 | `api_extractor/pipeline.py` | 容器中固定 `/out/tool.log`；证据统一保存到 `/out/evidence/` |
+| P0-04 | 输出目录创建发生在容器路径约束验证之前 | `api_extractor/pipeline.py` | 首次写入前先验证 `--config` 与 `--out` 的规范化路径 |
+| P0-05 | Dockerfile 未复制 `package-lock.json`，环境检查脚本会找不到文件 | `Dockerfile` | 最终镜像复制该锁文件 |
+| P1-01 | 动态请求失败（状态 -1/0）仍进入候选 API，容易形成误报 | `pipeline.py`、`normalization.py` | 传递 HTTP 状态并排除未完成/错误请求；401/403 保留作鉴权线索 |
+| P1-02 | 正则兜底把 `fetch('/images/logo.png')` 当 API | `static_analysis.py` | 在 fallback 也应用已有 API 特征过滤 |
+| P1-03 | Playwright 未注入 `site.json` 中必需的自定义 Header | `dynamic_analysis.py` | 创建浏览器上下文时设置 `extra_http_headers` |
+| P1-04 | 脱敏 HAR 的 `startedDateTime` 是 null | `dynamic_analysis.py` | 请求时记录 ISO8601 时间，保留证据时间信息 |
+| P1-05 | WebSocket 只记录连接地址，缺少消息方向/类型证据 | `dynamic_analysis.py` | 有界采集帧方向和安全的协议类型名，不记录原始消息体、令牌或私密数据 |
+
+改动仅适用于其所述范围，未修改真实站点凭据或本地评测环境。对于 `--budget` 小于 4 秒的情况，采集时间提前预留输出余量；完整预算限制仍需要容器端到端测量。
+
+## 3. 验证命令
+
+```bash
+python -m pytest -q
+python -m compileall -q api_extractor
+bash -n scripts/start_safe_stage8.sh scripts/diagnose_environment_stage10.sh
+docker build -t api-extractor:0.1.0 .
+docker run --rm --pull=never api-extractor:0.1.0 --help
+```
+
+本轮在隔离 Python 环境运行了 17 项单元测试，全部通过；`compileall` 和 Bash 语法检查也通过（动态分析模块的浏览器生命周期仍需真实 Chromium 实测）。这不是对 GitHub CI、Docker 构建或隐藏靶场的通过声明。所有未执行项必须在实际 Ubuntu/Docker 环境运行后再勾选。
+
+## 4. S1～S5 功能覆盖与剩余缺口
+
+| 场景 | 当前能力 | 必须追加的实测 |
+|---|---|---|
+| S1 | HTML/JS 抓取 + Babel AST + regex | React/Vue 多 bundle、变量拼接、精确率 |
+| S2 | 表单 action / 多页同站链接 | 多页面与局部 AJAX 的 ground truth 对照 |
+| S3 | 基础表单登录、懒加载链接、会话 Cookie、配置 Headers | SSO/MFA、登录成功判断、JS 路由交互 |
+| S4 | 动态运行时捕获签名请求、辨认签名参数 | 签名算法还原与重放未实现，不能宣称完成 |
+| S5 | WebSocket 握手及帧元数据、SSE 与 GraphQL 请求 | WS 订阅关联、GraphQL variables/schema 完整解析与可复验性仍不足 |
+
+## 5. 经验与可操作结论
+
+1. **Schema 正确不等于采集成功**：异常必须通过退出码和日志区分；`endpoints: []` 只能表示结果为空。
+2. **配置白名单优先，不能以相同二级域推定授权**：默认安全拒绝，明确授权才放行。
+3. **按真实 HTTP 结果衡量证据**：网络失败、404 与 JS 字符串命中不是同一强度的证明；静态候选需要可追溯代码位置。
+4. **Docker 依赖要能在离线运行时使用**：构建阶段下载并固定，运行阶段不应安装额外包。之前出现 `deb.debian.org` 断连和 containerd layer lock，不能靠无差别重启或删除全局缓存解决。
+5. **Playwright 版本必须匹配镜像**：目前 `v1.55.0-noble` 与 Python 依赖 `playwright==1.55.0` 对齐；正式交付必须测实际浏览器启动。
+6. **保护凭据和用户资产**：不记录 HTTP 认证头和 WS 原始消息、不修改第三方容器、不自动删除 Docker 数据。
+7. **有限自动交互与复杂签名是泛化短板**：没有多站点基准测试和签名复现证据，不能假定 S4/S5 已达标。
+
+## 6. 尚未通过的正式验收门槛
+
+- [ ] 在 Ubuntu Docker 环境完成 `docker build` 并实测构建耗时 ≤15 分钟和镜像体积 ≤6 GB。
+- [ ] 以完整评测命令在 `bench-net` 运行两轮，检查 `/out/result.json`、`/out/tool.log`、`/out/evidence/`。
+- [ ] 验证所有访问严格属于授权站点范围，并经代理按 ≤8 并发、≤20 RPS 执行。
+- [ ] 在陌生的 S1～S5 授权练习站点上取得 ground truth，测量 Recall、Precision、语义和证据可重放率。
+- [ ] S4 动态签名的可复验请求尚未实现通用处理；S5 高级协议也需扩展。
+- [ ] 根据评审附录检查 Python 依赖 hash 锁定与所有供应链校验项。
+- [ ] 检查 README 中 AI 辅助声明、第三方 License、个人原创提交证据与提交时间规则。
+
+**状态：本轮属于针对已知问题的实现和局部回归测试，不等于最终综合考核 PASS。**

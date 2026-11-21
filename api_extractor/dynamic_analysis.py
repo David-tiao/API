@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -105,7 +107,7 @@ class DynamicAnalyzer:
                 if proxy:
                     launch_args["proxy"] = proxy
                 browser = await playwright.chromium.launch(**launch_args)
-                context = await browser.new_context(ignore_https_errors=False, service_workers="block")
+                context = await browser.new_context(ignore_https_errors=False, service_workers="block", extra_http_headers=self.config.headers)
 
                 async def route_handler(route):
                     request = route.request
@@ -156,6 +158,7 @@ class DynamicAnalyzer:
                         "response_content_type": "",
                         "response_fields": [],
                         "request_index": len(self.records),
+                        "started_at": datetime.now(timezone.utc).isoformat(),
                     }
                     self._request_map[id(request)] = row
                     self.records.append(row)
@@ -225,8 +228,30 @@ class DynamicAnalyzer:
                         "response_content_type": "",
                         "response_fields": [],
                         "request_index": index,
+                        "started_at": datetime.now(timezone.utc).isoformat(),
+                        "ws_events": [],
                         "note": "WebSocket connection observed",
                     }
+                    def capture_frame(direction, payload):
+                        # Only bounded metadata is kept; never store raw frames.
+                        if len(row["ws_events"]) >= 24:
+                            return
+                        msg_type = None
+                        try:
+                            obj = json.loads(payload) if isinstance(payload, str) else None
+                            if isinstance(obj, dict):
+                                raw_type = obj.get("type") or obj.get("event") or obj.get("action")
+                                if isinstance(raw_type, str) and re.fullmatch(r"[A-Za-z_][\w.-]{0,47}", raw_type):
+                                    msg_type = raw_type
+                        except (ValueError, TypeError):
+                            pass
+                        event = {"direction": direction}
+                        if msg_type:
+                            event["type"] = msg_type
+                        row["ws_events"].append(event)
+                        row["note"] = f"WebSocket observed; {len(row['ws_events'])} frame metadata records"
+                    websocket.on("framesent", lambda payload: capture_frame("sent", payload))
+                    websocket.on("framereceived", lambda payload: capture_frame("received", payload))
                     self.records.append(row)
                     self.logger.write("GET", websocket.url, 101, "dynamic", request_index=index, resource_type="websocket", protocol="WS")
 
@@ -342,7 +367,7 @@ class DynamicAnalyzer:
         entries = []
         for row in self.records:
             entries.append({
-                "startedDateTime": None,
+                "startedDateTime": row.get("started_at"),
                 "request": {
                     "method": row.get("http_method", "GET"),
                     "url": redact_url(row.get("url", "")),
@@ -357,6 +382,7 @@ class DynamicAnalyzer:
                 },
                 "_requestIndex": row.get("request_index"),
                 "_resourceType": row.get("resource_type"),
+                "_wsEvents": row.get("ws_events", []),
             })
         destination = self.out_dir / "evidence" / "dynamic.har"
         destination.parent.mkdir(parents=True, exist_ok=True)

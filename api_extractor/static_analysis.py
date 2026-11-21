@@ -110,6 +110,8 @@ class StaticAnalyzer:
             resolved = self._resolve(raw_url, script.url)
             if not resolved or not self.guard.is_allowed(resolved):
                 continue
+            if not self._looks_like_api(urlsplit(resolved).path, method):
+                continue
             line = script.content.count("\n", 0, position) + 1
             snippet = lines[line - 1].strip()[:300] if line <= len(lines) else ""
             candidates.append({
