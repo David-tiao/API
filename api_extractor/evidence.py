@@ -37,9 +37,11 @@ class EvidenceAuditor:
             for raw in source:
                 try:
                     row = json.loads(raw)
-                    if row.get("phase") == "dynamic":
+                    if (row.get("phase") == "dynamic" and
+                            row.get("detail_phase") != "redirect"):
                         pass
-                    elif (row.get("phase") == "probe" and
+                    elif (row.get("phase") == "verify" and
+                          row.get("detail_phase") == "probe" and
                           row.get("resource_type") == "explicit_safe_get"):
                         pass
                     else:
