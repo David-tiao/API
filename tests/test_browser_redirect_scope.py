@@ -17,7 +17,12 @@ class MockResponse:
 
 class MockRoute:
     def __init__(self, url, responses, method="GET"):
-        self.request = SimpleNamespace(url=url, method=method)
+        self.request = SimpleNamespace(
+            url=url, method=method,
+            headers={"Accept": "text/html", "User-Agent": "FixtureBrowser/1",
+                     "Content-Type": "application/x-www-form-urlencoded",
+                     "Cookie": "secret-cookie"}
+        )
         self.responses = responses
         self.fetches = []
         self.aborted = False
@@ -74,22 +79,31 @@ def test_initial_external_host_is_blocked_before_fetch(tmp_path):
     assert route.aborted and route.fetches == []
 
 
-def test_post_redirect_is_refused_instead_of_replayed(tmp_path):
+def test_post_302_same_host_switches_to_get_without_replaying_body(tmp_path):
     route = MockRoute("http://fixture:8765/api/login", [
-        MockResponse(302, "/dashboard")
+        MockResponse(302, "/dashboard"), MockResponse(200)
     ], method="POST")
     log = execute(tmp_path, route)
-    assert route.aborted and len(route.fetches) == 1
-    assert "browser_redirect_unsafe_transition" in log
+    assert route.fulfilled and not route.aborted and len(route.fetches) == 2
+    hop = route.fetches[1]
+    assert hop["url"] == "http://fixture:8765/dashboard"
+    assert hop["method"] == "GET" and hop["post_data"] == ""
+    assert "Cookie" not in hop["headers"] and "Content-Type" not in hop["headers"]
+    assert "Authorization" not in hop["headers"]
+    assert "browser_redirect_unsafe_transition" not in log
 
 
-def test_http_to_https_upgrade_is_fail_closed(tmp_path):
+def test_authorized_get_http_to_https_upgrade_is_explicit(tmp_path):
     route = MockRoute("http://fixture:8765/start", [
-        MockResponse(302, "https://fixture:8765/start")
+        MockResponse(302, "https://fixture:8765/start"), MockResponse(200)
     ])
     log = execute(tmp_path, route)
-    assert route.aborted and len(route.fetches) == 1
-    assert "browser_redirect_unsafe_transition" in log
+    assert route.fulfilled and not route.aborted and len(route.fetches) == 2
+    hop = route.fetches[1]
+    assert hop["url"] == "https://fixture:8765/start"
+    assert hop["method"] == "GET"
+    assert "Cookie" not in hop["headers"] and "Content-Type" not in hop["headers"]
+    assert "browser_redirect_unsafe_transition" not in log
 
 
 def test_redirect_loop_stops_after_seven_hops(tmp_path):

@@ -396,3 +396,8 @@ V16 首次 GitHub Actions [运行记录](https://github.com/David-tiao/API/actio
 首轮 [Actions](https://github.com/David-tiao/API/actions/runs/45019132586) 168 项 pytest 通过，但 SSE 正式结果为空，Docker 整体 FAIL。随后确认真实上游事件样本的类型为 `bytearray`；尽管字节内容符合测试预期，却不能直接传给 Playwright `route.fulfill`。修复为不可变 `bytes`，并增加严格类型断言与真实长期运行的 HTTPX loopback 测试。
 
 [修复后 Actions](https://github.com/David-tiao/API/actions/runs/45019475066) 对精确代码 `0bd65699` **completed/success**：169 项全仓库 pytest、28 秒 Docker 构建、镜像 2,864,226,562 字节、SPA/SSR/SSE 各两轮真实 Chromium 全部成功，**6/6 独立 Schema 与 HAR/JSONL 核查通过**；未授权接收端未看到禁止请求。V17 证明了受控真实 SSE 首事件的发现，不代表完整订阅恢复或官方隐藏 S5 达标。详见 [V17 完整验收](ACCEPTANCE_V17_2026-11-22.md)。
+
+
+### V18 首轮回归：旧的“一概拒绝”断言升级为安全条件测试
+
+[首轮 Actions](https://github.com/David-tiao/API/actions/runs/45021056967) 全仓库 200 项通过、2 项失败，Docker 未执行。两项是上一阶段针对 POST 302 与 GET→HTTPS 的绝对拒绝测试；V18 只开放同主机受控安全路径。保留用例并改为检查**实际二跳、POST Body 清除、Cookie/Auth/Header 不泄露**，原越界和不可重放 POST 的禁止断言继续存在。不能把旧断言不兼容说成新功能已成功；必须等待第二轮 GitHub CI。
