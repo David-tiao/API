@@ -158,6 +158,14 @@ URL 日志在写入前统一去掉 userinfo 并隐藏敏感 Query 值。短键�
 
 V10 结构变更包括 `archive/legacy/` 历史归档与 `docs/README.md` 导航；保持 `scripts/`、Dockerfile 与 CLI 不动。详见 [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)、[ADR-0001](adr/0001-compatibility-first.md)。本轮新模块 8 项离线单元测试通过；不能据此断言完整 Docker 通过。
 
+## 5.4 V11：Public Suffix 作用域判定与 WebSocket 在途资源模型
+
+**域名判定**：从 URL 解析 hostname，执行 IDNA 规范化，使用 `libpsl.psl_registrable_domain` 查询操作系统内建 Public Suffix List。仅当请求 Host 与入口 Host 属于同一可注册域，且命中站点配置的 `allowed_hosts`（如有）时允许访问。IP 地址只按原 IP 匹配；URL 包含 username/password 则拒绝。PSL 不可用时返回完整 Host，而不是以不完整规则猜测公共后缀，因而“默认拒绝”未被破坏。PSL 数据来自镜像内系统库，**运行期不联网更新**。
+
+**WebSocket 门控**：Playwright 的 `route_web_socket` 接入既有 `RequestGate`。进入连接时获取信号量并接受最小间隔限速；`connect_to_server()` 同步建立上游路由，借 `on_close` 回调在关闭时释放。开放 WS 持续占用槽位，计入 R4 的同时在途预算；错误路径由 `try/except BaseException` 回收槽位。即使客户端或上游重复触发关闭回调，`BrowserRequestLimiter.after` 通过 active 集合防止重复释放。
+
+**限制**：仅在单事件循环内保障代码门控，代理与浏览器真正发出的握手、服务端长连接和运行时 DNS 行为仍需外部网络审计。PSL 库在正式 Docker 中是否存在还需真实构建验证。详见 [V11 验收状态](ACCEPTANCE_V11_2026-11-22.md)。
+
 ## 6. 当前验证等级与未解决问题
 
 本轮不扫描真实网站、不运行 Docker/Chromium。隔离 Python 工作副本的离线测试和本地模拟 HTTP 夹具 **共 35 项通过**，Python `compileall` 及 Bash 语法检查通过。测试新增了证据文件缺失、路径穿越、越界 symlink、HAR 错索引、错 Method、日志缺失及 WS/GQL 映射等场景。

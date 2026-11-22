@@ -2,6 +2,7 @@
 
 | 目的 | 权威文档 |
 |---|---|
+| **V11** 验收整改状态、风险与下轮重点 | [ACCEPTANCE_V11_2026-11-22.md](ACCEPTANCE_V11_2026-11-22.md) |
 | V10 当前验收结果、复现与整改项 | [ACCEPTANCE_V10_2026-11-22.md](ACCEPTANCE_V10_2026-11-22.md) |
 | 每一轮改进的原因、文件及验证边界 | [CHANGELOG.md](CHANGELOG.md) |
 | 故障、根因、修复经验与仍未验证的内容 | [FIXES_AND_LESSONS.md](FIXES_AND_LESSONS.md) |

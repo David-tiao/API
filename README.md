@@ -298,3 +298,8 @@ bash scripts/acceptance_stage10.sh https://你的授权站点/ ./site.json 180
 旧版 ZIP 与 Dockerfile 备份已保留原始 Git 内容并移动至 [archive/legacy](archive/README.md)。从 `pipeline.py` 抽出了候选映射纯函数模块 `api_extractor/candidates.py`，新增 8 项定向离线测试并通过。保持了 CLI、Dockerfile、脚本与输出 Schema 路径。文档导航见 [docs/README.md](docs/README.md)，代码边界见 [PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md)，实际修改详情见 [CHANGELOG.md](docs/CHANGELOG.md)。
 
 本轮**未**重跑当前 GitHub 完整测试集、Docker 或真实 Chromium；严格 `src/` 布局目前仍未迁移，原因见 [ADR-0001](docs/adr/0001-compatibility-first.md)。
+
+
+## 19. V11：安全作用域与 WebSocket 全局门控
+
+已经对 `ScopeGuard` 的 R5 公共后缀判定做 fail-closed 修复，并使 WebSocket 连接纳入共享 RequestGate。变更目的、代码与 19 项专项离线测试见 [docs/CHANGELOG.md](docs/CHANGELOG.md)（V11），最新验收边界见 [docs/ACCEPTANCE_V11_2026-11-22.md](docs/ACCEPTANCE_V11_2026-11-22.md)。**没有重新运行真实 Docker/Chromium；R6 静态 API 的真实请求证据仍是待办**。保持原 CLI、Schema 和项目软件版本 `0.1.0` 不变。

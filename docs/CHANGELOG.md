@@ -2,11 +2,41 @@
 
 > 项目：[David-tiao/API](https://github.com/David-tiao/API) · 选题 B：前端 API 提取工具  
 > 记录日期：2026-11-22（Asia/Singapore）  
-> **说明**：以下“V0～V10”是便于理解的**开发迭代阶段编号**，不是正式 Git Tag 或发布版本号。当前 `pyproject.toml` 中的软件版本仍为 `0.1.0`，不要把阶段编号当作发行版本。
+> **说明**：以下“V0～V11”是便于理解的**开发迭代阶段编号**，不是正式 Git Tag 或发布版本号。当前 `pyproject.toml` 中的软件版本仍为 `0.1.0`，不要把阶段编号当作发行版本。
 
 ## 验收快照：V10（2026-11-22，非功能版本）
 
 针对代码基线 `1774725441e`，新增 [V10 验收报告](ACCEPTANCE_V10_2026-11-22.md)。结果：V10 候选纯函数的 8 项当前 GitHub SHA 一致的测试通过；但 R5 注册域解析存在可复现越界风险，静态推断的 API 无法自然满足逐条请求日志与重放证明。完整 GitHub 当前全仓库测试、Docker 和隐藏站点未验证。**本次只更新文档，不修改业务代码；不视为 V11 版本发布。**
+
+## 最新迭代：V11 · R5 可注册域边界与 R4 WebSocket 全局限流（2026-11-22）
+
+**代码提交**：[951a50afd](https://github.com/David-tiao/API/commit/951a50afd34561f0a36f67afb630a656905eb7c6)  
+**修改文件**：`api_extractor/scope.py`、`api_extractor/dynamic_analysis.py`、新增 `tests/test_scope_psl.py` 与 `tests/test_ws_gate.py`。  
+**定位**：修复 V10 验收的两个硬性安全阻断项；不修改 CLI、Schema、运行时外部调用、历史文件。
+
+### 问题与理由
+
+1. **R5：旧版手工 Public Suffix 列表不完整**。例如将 `app.example.co.za` 错误地简化成 `co.za`，允许非授权 `unrelated.co.za`，属于潜在越界。
+2. **修复：使用系统 libpsl 内置的 Public Suffix List** 计算注册域，覆盖多标签公共后缀以及 `github.io` 等私有后缀。若库缺失或无法确认，`registrable_domain` 保守返回完整主机名，禁止推断兄弟子域。统一 IDNA 规范化，禁止 URL 自带 username/password。
+3. **R4：WS 握手原本绕过共享 RequestGate**。以前的 `connect_to_server()` 直接执行，没有并发/RPS 约束。
+4. **修复：增加 `DynamicAnalyzer._route_websocket()`**，使用相同的 `BrowserRequestLimiter` 和 `RequestGate` 控制建立连接；连接关闭、上游关闭或异常时释放槽位；开放连接持续占用槽位，不把“握手完成”错误地等同于“请求完成”。当前 Playwright 的 `connect_to_server()` 为同步调用，不添加错误的 `await`。
+
+### 本轮验证
+
+在隔离环境使用修改后的 `scope.py`、作用域原测试、模拟 WebSocket 组件运行：
+
+```bash
+python -m pytest -q tests/test_scope.py tests/test_scope_psl.py tests/test_ws_gate.py
+python -m compileall -q api_extractor tests
+```
+
+**19 项定向测试通过**（5 项原作用域 + 8 项新增 Public Suffix/IDNA/凭据/后备规则 + 6 项 WS 并发/限速/生命周期模拟）。其中 `scope.py` 与本次 GitHub 代码文件的 Git Blob SHA 一致；WS 使用假的 Route 测试真实门控逻辑，不是 Chromium 网络实测。宿主机检测到 libpsl，亦测试了强制缺失时的 fail-closed 路径。
+
+**未验证**：官方 Docker 镜像 libpsl 是否可加载、真实 Chromium/WebSocket 代理侧流量是否持续符合 ≤8 并发/≤20 RPS、隐藏站点 S1～S5 的召回率与重放率。请不要将这些局部用例与历史测试计数相加，宣称“全仓库通过”。
+
+### R6 证据链仍未关闭
+
+本次**没有**自动调用静态源码里的任意接口，也没有伪造 `tool.log` 请求状态。源码出现 `fetch('/api/...')` 并不保证真的触发网络请求，尤其未知 POST/DELETE 可能有业务副作用。V10 验收指出的“静态条目缺少对应真实请求/可重放证据”仍是独立的待修复项，详见 [V11 验收状态](ACCEPTANCE_V11_2026-11-22.md)。后续需设计明确授权、证据分级与安全执行策略。
 
 ## 最新迭代：V10 · 文件结构治理与候选映射分层（2026-11-22）
 
@@ -108,6 +138,7 @@ python -m compileall -q api_extractor
 | V8 | [`3e3193822`](https://github.com/David-tiao/API/commit/3e3193822ed8ae78ee353ece00becc133adb4659) | 失败状态显式报告、预算取消保留部分 API | 可靠性与 R2 适配 | 35 项离线测试；真实 Docker 待验收 |
 | V9 | [`7208a2b6b`](https://github.com/David-tiao/API/commit/7208a2b6be1391e373d4d1db9c93d51b85409e00) | URL 凭据脱敏、跨轮日志隔离、HAR 索引和状态匹配 | 安全与证据质量 | 本次 30 项针对性离线测试；未全仓库实测 |
 | V10 | 本次提交（见 Git 文件历史） | 归档旧版文件、抽离候选纯函数、文档规范化 | 架构整理 | 8 项定向离线测试；未完整回归 |
+| V11 | [`951a50afd`](https://github.com/David-tiao/API/commit/951a50afd34561f0a36f67afb630a656905eb7c6) | PSL 域名边界与 WS 共享限流器 | R5/R4 安全修复 | 19 项定向测试；正式 Docker 未验收 |
 
 以上提交按**实现顺序**排列。GitHub 原始提交时间统一以 Git 元数据为准；2026-11-21 UTC 的提交对应新加坡时间 2026-11-21 至 22 日。
 

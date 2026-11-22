@@ -134,3 +134,15 @@ docker run --rm --pull=never api-extractor:0.1.0 --help
 **修复依据**：保留旧文件的 Git Blob SHA，只改变路径到 `archive/legacy/`；新增 `candidates.py` 实现无网络、无文件操作的 `from_html_forms()` 与 `from_network_records()`，保持输入的状态、索引、请求字段，由 `normalization.py` 与 `evidence.py` 继续判定有效性。增加 8 项独立测试，实际运行通过。
 
 **经验**：小型高质量项目优先单向数据流与可独立测试的纯函数，不为目录外观复制两套源码；不要擅自丢弃用户历史资产。**未验证项**：最新全仓库测试、真实 Docker、严格 `src/` 目录结构和隐藏站点评分。
+
+
+## 14. V11：修复域名注册边界与 WebSocket 门控（2026-11-22）
+
+- **根因（R5）**：手动维护的注册域后缀表会遗漏 `co.za` 等后缀，错误允许与目标无关的兄弟域名；`allowed_hosts` 不是可覆盖同域边界的豁免。
+- **修复**：`scope.py` 借助操作系统 libpsl 内置 PSL 计算可注册域，支持 ccTLD/私有后缀；在库缺失时保守限制为目标主机及其后代，不依据二级域名自行猜测；额外拒绝携带 URL userinfo 的请求，支持 IDNA 规范化。
+- **根因（R4）**：之前 WebSocket connect 过程绕过了 HTTP 共享并发与限速门控，实际连接数量不可约束。
+- **修复**：WebSocket Route 引入 `_limiter.before(id(route))`，开放连接占用共享槽位，客户端或上游关闭与异常时调用幂等 `after` 释放；借助 RequestGate 限制连接建立的发起频率。
+- **验证**：19 项专项离线测试通过，覆盖 `co.za` 越界、`github.io` 私有后缀、IP、IDNA、无 PSL 退化、WS 长连接槽位、并发等待、异常释放、模拟 20 RPS 限速；Python 编译检查通过。
+- **剩余风险**：尚未在官方 Docker 内确认 libpsl 系统库加载及 Chromium 的真实 WS 流量。缺失 libpsl 时虽然可避免未知兄弟域越界，但会降低多子域站点覆盖率。R6 静态接口无真实请求证据的问题仍未解决。
+
+**经验**：安全边界不能依赖不完整的域名后缀经验表；复杂协议不应绕开全局限速器；即使局部修复有测试依据，仍应将代理、真实浏览器与隐藏评测明确列为未验收。

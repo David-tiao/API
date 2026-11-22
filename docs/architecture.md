@@ -38,3 +38,10 @@ The tool first performs bounded HTTP collection, then analyzes fetched JavaScrip
 ## Security boundary
 
 Only HTTP(S)/WS(S) URLs in the target's registrable domain and configured `allowed_hosts` are eligible. Out-of-scope browser requests are aborted. HTTP redirects are revalidated before following. The runtime does not call external model services, does not execute shell commands extracted from pages, and does not write outside the designated output directory in the evaluation container.
+
+
+## V11 安全边界补充
+
+- `scope.py` 改用系统 libpsl 的公共后缀列表确定目标可注册域；无库时保守限制到当前目标主机及其后代。
+- `dynamic_analysis.py` 的 WebSocket route 现在持有共享请求门控槽位至连接关闭，不再绕过 HTTP 的并发/RPS 控制。
+- 这些为代码级与离线模拟层面的改进；代理和真实浏览器层面的 R4/R5 仍需实测。静态候选真实请求/重放证据仍待 R6 专项完善。
