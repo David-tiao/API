@@ -356,3 +356,10 @@ V16 首次 GitHub Actions [运行记录](https://github.com/David-tiao/API/actio
 根因：`Playwright route.continue_()` 对重定向链的下一跳不保证重新调用 ScopeGuard。修补：普通 HTTP 路由统一用 `route.fetch(max_redirects=0)`，逐跳解析 Location 并在请求发生前重新执行 ScopeGuard，逐跳消耗 RequestGate RPS 预算，最多七跳。不在授权范围的目标立即拒绝；跨协议或未知非 GET/HEAD 重定向保守拒绝。保留真实容器接收端的负向断言，不通过放松测试掩盖漏洞。
 
 **兼容代价**：路由 fetch 需要缓冲完整响应，可能影响 SSE 长连接或巨大资源；合法的 POST 登录跳转、HTTP 到 HTTPS 升级暂时采用 fail-closed 策略，后续需要在保持 R5 的前提下专项兼容性改进。新增七项模拟路由测试；修补的完整 GitHub CI 结果以新提交实际运行状态为准。
+
+
+### V16 完成验收：Playwright 302 越界修复通过
+
+[修补版 GitHub Actions](https://github.com/David-tiao/API/actions/runs/45017605857) 绑定提交 `a171604b325b93abed9958c4c7c4422afb1c182b`：**150 项全仓库 pytest 通过**、Docker 构建 **26 秒**、镜像 **2,864,219,528 字节**；SPA 两轮与 SSR 两轮共四次 Chromium 运行均成功，**4/4 独立 Schema 校验**和请求 HAR/JSONL 对照通过。之前产生 2 次请求的 `offscope` 容器本轮**未收到任何禁止路径请求**，因此 **V16 合成站点负向安全测试 PASS**。
+
+不等于正式隐藏场站与代理级审计通过；详细失败前后对照、残留的 SSE/POST/HTTPS 跳转兼容性风险见 [V16 验收报告](ACCEPTANCE_V16_2026-11-22.md)。

@@ -362,3 +362,6 @@ V12 默认不把未观察到的 JS/HTML 请求当成正式 API。V13 增加**仅
 ## 24. V16：SSR 与跨域阻断负向 Docker 验收
 
 GitHub CI 合成环境由 SPA 扩展到 SPA+SSR 双场景，各运行两次。SSR 内含未知 POST 表单、真实 GET、跨域图片和指向模拟禁止 Host 的 302 重定向。验收直接检查禁止 Host 容器接收日志、POST 没被提交、真实 GET 的 HAR/JSONL 与正式 Schema 一致。详见 [V16 验收](docs/ACCEPTANCE_V16_2026-11-22.md)。未进行正式隐藏站点或真实代理审计。
+
+
+**V16 真实验收补充**：[GitHub Actions 安全复验](https://github.com/David-tiao/API/actions/runs/45017605857)：150 项 pytest 通过；Docker 构建 26 秒、镜像约 2.86 GB；四轮真实 Chromium（SPA×2、SSR×2）及 4/4 独立 Schema 与 HAR/日志核验通过；独立越界模拟服务器本轮未收到禁止请求。此前 302 漏洞的修复在当前合成环境得到闭环证明。**仍待验证**：SSE 流、跨协议/非 GET 重定向以及正式代理和隐藏站点测试。

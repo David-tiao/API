@@ -29,3 +29,25 @@
 [GitHub Actions V16 首轮](https://github.com/David-tiao/API/actions/runs/45017092637)：精确 checkout **143 passed**，Docker **33 秒**，镜像 **2,864,047,980 字节**；两轮 SPA 与两轮 SSR 均输出预期 GET，并经过独立 Schema/HAR/日志验证，未提交未知 POST；但 `offscope` 服务端接收到两次 `GET /forbidden-redirect`，说明浏览器 302 重定向**突破 R5**，总体 **FAIL**。
 
 当前提交针对根因加入禁用自动重定向、逐跳作用域/限速检查和七项路由单元测试。**是否修复成功仍须后续 GitHub Actions 真实运行确认**，不得凭代码提交直接判定 PASS。已知 SSE、巨大资源、跨协议或 POST 重定向可能受到保守处理影响。
+
+
+## 安全补丁真实复验：V16 合成场景 PASS（2026-11-22）
+
+**代码提交**：`a171604b325b93abed9958c4c7c4422afb1c182b`；[GitHub Actions 完整运行记录](https://github.com/David-tiao/API/actions/runs/45017605857)；**completed / success**，两个 Job 均 success。
+
+| 检查内容 | 实际结果 |
+|---|---|
+| 精确同提交全仓库 pytest | **150 passed in 4.79s** |
+| Docker 构建 | **26 秒**；小于 15 分钟 |
+| 镜像大小 | **2,864,219,528 字节**（约 2.86 GB） |
+| SPA 真实 Chromium | 两轮各 **1 条真实 GET**，集合一致 |
+| SSR 真实 Chromium | 两轮各 **1 条真实 GET**，集合一致 |
+| JSON Schema 独立校验 | **4/4 通过** |
+| HAR ↔ tool.log 请求、索引、URL、状态 | **四轮均通过** |
+| SSR 未知 POST | 没有实际发送；保留为待验证静态线索 |
+| **独立越界接收端** | **没有收到 /forbidden-resource 或 /forbidden-redirect 请求，PASS** |
+| 整体 GitHub Actions | **成功** |
+
+**失败→成功证据链**：上一版代码的 [V16 首轮](https://github.com/David-tiao/API/actions/runs/45017092637) 真正向未授权接收端发送了 2 次跨域 302 请求（FAIL）；改为受控逐跳 `route.fetch(max_redirects=0)` 后，完全相同的合成场景没有再产生禁止请求（PASS）。单元测试也由 143 增至 150 项并通过。该差异直接来自 GitHub Runner 的 Docker 接收端日志，而非扫描器的自我报告。
+
+**验收边界**：可以确认此特定 R5 302 绕过缺陷在该合成环境下已解决；仍不能宣称所有真实网站、DNS/代理路径、SSE/WS/GraphQL、隐藏 S1～S5 或系统级 R7 读写边界全面合格。新浏览器路由需要缓冲 HTTP 响应，可能影响 SSE 长连接/大资源；对非 GET/HEAD 重定向与跨协议升级保守拒绝，可能影响部分登录/导航行为。下一阶段应以新的授权合成流式/登录测试检验上述回归风险，而不能放松 R5。

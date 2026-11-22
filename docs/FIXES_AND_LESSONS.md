@@ -212,3 +212,8 @@ V15 只有允许 GET 的正向测试，并没有真实证明跨域页面资源�
 ### V16 真实问题：Playwright 自动重定向绕过 URL scope
 
 首次 V16 Docker 负向测试让 `offscope` 接收端记录到 **2 次 /forbidden-redirect**，而正向 SPA/SSR 测试均成功。证明 `route.continue_()` 只守住初始请求，不能依赖浏览器自动重定向继续守住新 Host。生产修复采用 `route.fetch(max_redirects=0)` 后手动逐跳校验、逐跳计 RPS、限制跳数，不确定方法和跨协议语义直接拒绝。真实 Docker 将继续检查接收端服务日志，不能只信工具自己的日志。保守拒绝可能影响 SSE/登录流程，须后续专项复验。
+
+
+### V16 闭环验证（实际 Docker）
+
+用同一个合成站点测试前后对照：修复前 `offscope` 服务端接收两条越界 302 请求；修复后 GitHub Actions run [45017605857](https://github.com/David-tiao/API/actions/runs/45017605857) 在四轮 Chromium 执行后确认无禁止访问，并完成 150 项 pytest、4/4 Schema 和 HAR/日志校验。修复证明是**本合成环境中 R5 负向用例通过**，不能扩大为所有场站或流式 API 的完整安全认证。后续重点是恢复流式 SSE 和合法重定向可用性，不能以安全测试变绿为由忽视功能回归。
