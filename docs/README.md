@@ -2,6 +2,7 @@
 
 | 目的 | 权威文档 |
 |---|---|
+| **V15** 当前提交的 CI、Docker 和双轮验收说明 | [ACCEPTANCE_V15_2026-11-22.md](ACCEPTANCE_V15_2026-11-22.md) |
 | **V14** 离线评分验收与真实执行记录 | [ACCEPTANCE_V14_2026-11-22.md](ACCEPTANCE_V14_2026-11-22.md) |
 | 离线评分器使用方法、公式与局限 | [OFFLINE_BENCHMARK.md](OFFLINE_BENCHMARK.md) |
 | **V13** 本地 GET 验证、安全边界及验收 | [ACCEPTANCE_V13_2026-11-22.md](ACCEPTANCE_V13_2026-11-22.md) |

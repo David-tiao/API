@@ -13,3 +13,8 @@ V10 没有移动现有 Shell 脚本，避免历史 Ubuntu 命令失效。
 | `fix_apt_stage10.sh`、`fix_browser_stage10.sh` | 特定故障修复；必须先审核再执行 |
 
 建议先运行 `bash scripts/diagnose_environment_stage10.sh check`。没有本机授权时，不要对公网目标执行自动扫描。任何脚本不得擅自重启 Docker 全局服务或处理其他容器。
+
+
+### V15 自动 Docker 回归
+
+新增 `ci_docker_smoke.sh`。此脚本仅面向已存在的测试镜像及本仓库的**合成站点**：创建独立的 internal Docker 网络与临时目标容器，使用只读根文件系统加唯一 `/out` 挂载执行两次正式 CLI，并验证实际请求日志、HAR 和结果一致性。只移除脚本亲自创建的网络、容器和临时目录，不调用 `docker prune`、`systemctl`、`sudo`，不操作用户其他容器。GitHub Actions 优先在离线测试成功后执行。真实 Docker 运行结果尚待 GitHub Actions 核实。

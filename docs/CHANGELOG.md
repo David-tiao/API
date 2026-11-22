@@ -4,7 +4,7 @@
 
 > 项目：[David-tiao/API](https://github.com/David-tiao/API) · 选题 B：前端 API 提取工具  
 > 记录日期：2026-11-22（Asia/Singapore）  
-> **说明**：以下“V0～V14”是便于理解的**开发迭代阶段编号**，不是正式 Git Tag 或发布版本号。当前 `pyproject.toml` 中的软件版本仍为 `0.1.0`，不要把阶段编号当作发行版本。
+> **说明**：以下“V0～V15”是便于理解的**开发迭代阶段编号**，不是正式 Git Tag 或发布版本号。当前 `pyproject.toml` 中的软件版本仍为 `0.1.0`，不要把阶段编号当作发行版本。
 
 ## 验收快照：V10（2026-11-22，非功能版本）
 
@@ -13,6 +13,23 @@
 ## 安全维护：内部资料不纳入公开仓库（2026-11-22）
 
 已清理公开工作树中不应跟踪的内部材料，并更新 Git/Docker 排除规则。此提交没有改变扫描器源码、CLI、Schema 或验收结果。**注意：正常删除提交不清除历史 Git 对象或外部缓存；历史彻底清理需要单独进行，并应优先调整仓库可见性。**
+
+## 最新迭代：V15 · 同一提交的自动回归与隔离 Docker 双轮验收（2026-11-22）
+
+**新增**：`.github/workflows/quality-gate.yml`、`scripts/ci_docker_smoke.sh`、`tests/fixtures/docker_smoke_site.py`、`tests/test_docker_smoke_fixture.py`；文档详见 [V15 验收说明](ACCEPTANCE_V15_2026-11-22.md)。
+
+**根因**：此前 V14 的 119 项测试在隔离组合工作副本执行，虽然新文件 SHA 核对过，但仍不能证明 GitHub 当前完整工作树、Playwright Docker 镜像、R2 输出契约和双轮稳定性同步通过。新结构将验证**绑定到同一个 Git commit**，区分 Python/Node 单元测试和真正的浏览器容器端到端运行。
+
+**实施**：
+
+- 在 GitHub Actions 的全仓库检出中安装固定版本 Python/Node 依赖，运行 `pytest`、Python 编译检查、Node 语法、Shell 语法，并核查内部资料保护忽略规则。
+- 仅在离线测试成功后，尝试 900 秒内 `docker build`、镜像大小 ≤6 GiB；使用 **Docker internal-only network** 隔离测试中的 Python 模拟网站。两次独立执行与正式 CLI 相同的参数，分别检查 JSON、真实 API 日志、HAR、非空接口结果及端点集合稳定性。
+- 测试容器使用只读根文件系统，只有 `/out` 可写；CI 不访问真实站点、不读取组织方靶场凭据、不操作其他容器。
+- 本轮仅新增质量基础设施，**不修改扫描器运行行为、Dockerfile、输出 Schema 或 S1～S5 算法**。
+
+**已经执行的检查**：在当前隔离环境中，新的合成 HTTP 夹具真实启动并成功提供 HTML/JS/JSON；独立 Python HTTP 夹具测试 **1 项通过**；Bash/ Python 编译与 GitHub Actions YAML 结构检查通过。**当前环境没有 Docker，也没有从 GitHub 下载完整源码的网络能力；本文件刚提交时 GitHub Actions 全量测试与真实 Docker 结果尚待运行，不能标为 PASS。**
+
+**保密提醒**：仓库当前仍是公开的，历史提交里的内部资料尚未在 GitHub 完成重写和缓存清理。CI 不含内部资料内容，不能替代私有化与历史清理。后续须先完成保密处理，再进入真正的正式场站验收。
 
 ## 最新迭代：V14 · 离线量化评分基准与双轮稳定性（2026-11-22）
 
@@ -208,6 +225,7 @@ python -m compileall -q api_extractor
 | V12 | [旧提交链接已撤销] | request-backed 正式结果与静态待验证 sidecar | R6 证据分级 | 50 项相关离线测试，未做真实重放 |
 | V13 | [旧提交链接已撤销] | 本地显式 GET 授权与真实 HAR/日志核查 | 开发辅助/证据质量 | 87 项隔离离线测试；正式评测未验证 |
 | V14 | 本次 Git 提交（见文件历史） | 合成真值、Recall/Precision、证据交叉核查与双轮稳定性 | 离线质量基准 | 开发副本 119 项通过，新增专项 32 项；Docker 未验收 |
+| V15 | 本次 Git 提交（见 main 历史） | 全仓库 CI、Docker 合成站点双轮运行与证据核验 | 交付质量门禁 | 本地夹具测试 1 项；GitHub Actions 初次执行待核对 |
 
 以上提交按**实现顺序**排列。GitHub 原始提交时间统一以 Git 元数据为准；2026-11-21 UTC 的提交对应新加坡时间 2026-11-21 至 22 日。
 

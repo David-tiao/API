@@ -341,3 +341,13 @@ V12 默认不把未观察到的 JS/HTML 请求当成正式 API。V13 增加**仅
 使用方法：[docs/OFFLINE_BENCHMARK.md](docs/OFFLINE_BENCHMARK.md)。本轮离线执行结果：[V14 验收记录](docs/ACCEPTANCE_V14_2026-11-22.md)；更迭历史：[CHANGELOG.md](docs/CHANGELOG.md)。
 
 **不计**官方语义 20 分、证据链 10 分和工程质量 10 分；报告的 `official_100_point_score` 固定为 `null`。隔离组合工作副本 119 项 pytest 通过，其中 V14 新增 32 项；尚未进行当前 GitHub 精确 checkout 全量测试或真实 Docker/Chromium 与隐藏站点评测。该模块仅为离线开发质量门槛，不修改正式扫描行为。
+
+
+
+## 23. V15：同一提交自动验收
+
+新增 [GitHub Actions 质量门禁](.github/workflows/quality-gate.yml)，用于自动运行当前 GitHub 提交的全仓库 `pytest`、语法检查，并在前者通过时构建 Docker 镜像、检查大小与构建时间，在**仅含合成 HTTP 站点**的 Docker internal 网络中运行两次真实 Chromium。结果必须包含真实 `GET /api/items` 请求、`tool.log`、HAR 与一致的接口集合，不能以空 `result.json` 冒充验收成功。
+
+本地手动运行（必须已构建镜像、允许本机 Docker 操作）：`bash scripts/ci_docker_smoke.sh api-extractor-ci:latest`。具体契约、当前运行结果和未验证项见 [docs/ACCEPTANCE_V15_2026-11-22.md](docs/ACCEPTANCE_V15_2026-11-22.md)。
+
+此 CI **不访问真实考核站点**，不包含任何内部资料；请先将 GitHub 仓库设为 Private，并单独完成旧提交历史清理。真实 Docker、官方 R1～R8、S1～S5 及正式重放只有实际验证后才能给出最终结论。
