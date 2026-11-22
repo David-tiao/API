@@ -2,6 +2,8 @@ name: API Extractor reproducible quality gate
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
     # Check every main commit, including documentation-only changes.
   workflow_dispatch:
 
