@@ -8,6 +8,25 @@
 - 合成模拟站：[tests/fixtures/docker_smoke_site.py](../tests/fixtures/docker_smoke_site.py)。仅返回自造的 HTML、JS 和 JSON：根页面加载 `/app.js`，浏览器 JS 必须真实调用 `GET /api/items`。
 - Docker 验收脚本：[scripts/ci_docker_smoke.sh](../scripts/ci_docker_smoke.sh)，默认镜像名 `api-extractor-ci:latest`，需要本机 Docker，不会主动安装或删除用户的其他镜像/容器。
 
+## 1.1 加固后第二轮 GitHub Actions 结果（2026-11-22）
+
+**验证提交**：`7244ee3eeb437e1fddd36bf2828cc439086e8b6f`，实际运行：[GitHub Actions #2](https://github.com/David-tiao/API/actions/runs/45011978873)，状态 **completed / success**，两个 Job 均 success。
+
+| 严格验收项 | 独立执行结果 |
+|---|---|
+| 该提交精确源码的全部 pytest | **137 passed in 3.84s** |
+| Python/Node/Bash 语法及 CLI 检查 | **通过** |
+| Docker 原始镜像构建 | **32 秒**，小于 900 秒 |
+| Docker 镜像大小 | **2,864,047,070 字节**，小于 6 GiB |
+| Docker internal-only 合成 HTTP 站点 | **两次真实 Chromium 运行均成功** |
+| 独立 JSON Schema 校验 | **2 / 2 通过** |
+| 每轮实际请求证据 | **1 条 `GET /api/items`**；日志与 HAR 的索引、URL、方法、状态码一致 |
+| 双轮稳定性 | **1 条 vs 1 条，Endpoint 集合相同** |
+
+**相比首次运行的增量**：从仅检查 JSON 内容/基本 HAR 引用，升级为使用镜像自带的 `Draft202012Validator` 对实际输出独立二次校验，并要求 HAR 响应状态、请求索引、HTTP 方法、URL 与本轮 JSONL 原始请求一致；同时让**每次 main 提交**都触发完整 CI，避免仅修改文档后出现没有测试记录的新 HEAD。
+
+**验证边界没有变化**：这些成绩基于唯一的合成站点（一个公开 JSON GET），不代表官方 S1～S5 的 Recall/Precision、签名重放、真实代理限流审计、全部系统调用的 R7 审计。请不要把 137 项单元测试理解为已通过隐藏考核。
+
 ## 2. V15 首次 GitHub Actions 真实运行结果（已核验）
 
 **运行链接**：[GitHub Actions #1](https://github.com/David-tiao/API/actions/runs/45011683183)  

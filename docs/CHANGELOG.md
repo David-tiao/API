@@ -14,6 +14,10 @@
 
 已清理公开工作树中不应跟踪的内部材料，并更新 Git/Docker 排除规则。此提交没有改变扫描器源码、CLI、Schema 或验收结果。**注意：正常删除提交不清除历史 Git 对象或外部缓存；历史彻底清理需要单独进行，并应优先调整仓库可见性。**
 
+## V15 实测结论更新：完整 Schema 与 HAR/日志一致性检查通过
+
+加固版提交 `7244ee3` 的 [GitHub Actions 第二轮](https://github.com/David-tiao/API/actions/runs/45011978873) **completed/success**：精确 checkout **137 项 pytest 通过**；Docker **32 秒**，镜像 **2,864,047,070 字节**；隔离站点的 Chromium 双轮各识别 **1 条**合成 API，**两次独立 JSON Schema 校验、逐请求 HAR/JSONL 方法/URL/状态/索引检查都通过**。本轮通过的是合成站点交付链路，不是 S1～S5 隐藏站点综合考核；公开仓库旧历史资料仍待所有者清理。
+
 ## V15 验证增量：GitHub Actions 首轮成功与证据核对加固
 
 代码基线 `466dde4019d20da5a6deff52f4dc227b11f68ec7` 首轮 GitHub Actions [运行记录](https://github.com/David-tiao/API/actions/runs/45011683183) 已完成，两个 Job 均成功：**全仓库 pytest 137 项通过**；Docker 原构建 **28 秒**、镜像大小 **2,864,215,392 字节**；internal Docker 网络中的真实 Chromium 两轮分别发现 **1 条**合成 GET API，集合一致。最新增量加强独立 JSON Schema/HAR/日志对齐及所有 main 提交的 CI 触发，等新流水线结束再认定最新版通过。

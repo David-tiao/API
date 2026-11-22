@@ -354,3 +354,6 @@ V12 默认不把未观察到的 JS/HTML 请求当成正式 API。V13 增加**仅
 
 
 **V15 首轮验证更新**：GitHub Actions [Run #1](https://github.com/David-tiao/API/actions/runs/45011683183) 已真实执行，精确 checkout 137 项测试通过；Docker 28 秒构建、镜像 2,864,215,392 字节；自建隔离站点真实 Chromium 双轮各输出 1 条 API。后续提交会对 JSON Schema 和 HAR/日志索引作更严格的二次检查。参见 [V15 记录](docs/ACCEPTANCE_V15_2026-11-22.md)，这些数字不是正式隐藏站点评分。
+
+
+**V15 加固版实测**：[GitHub Actions #2](https://github.com/David-tiao/API/actions/runs/45011978873) 的同一提交中，137 项测试通过，Docker 构建 32 秒、镜像 2,864,047,070 字节；两轮真实浏览器合成站点结果一致，独立 JSON Schema 校验及 HAR/日志关联验证均通过。仍需组织方授权场景、代理安全与隐私历史清理，见 [V15 验收报告](docs/ACCEPTANCE_V15_2026-11-22.md)。
