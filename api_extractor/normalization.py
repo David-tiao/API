@@ -6,6 +6,9 @@ from collections import defaultdict
 from urllib.parse import parse_qsl, urlsplit
 
 from .signature_semantics import observed_signature_fields
+from .graphql_semantics import (
+    is_graphql_request, is_raw_graphql_document, operation_note, observed_variable_types,
+)
 
 _UUID = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$")
 _LONG_HEX = re.compile(r"^[0-9a-fA-F]{16,}$")
@@ -150,7 +153,11 @@ def normalize_candidates(candidates: list[dict]) -> list[dict]:
         if not parsed.hostname or parsed.scheme not in {"http", "https", "ws", "wss"}:
             continue
         method = str(candidate.get("method") or "GET").upper()
-        if method != "WS" and ("graphql" in parsed.path.lower() or (candidate.get("post_data") and any(x in str(candidate.get("post_data")).lower() for x in ("\"query\"", "mutation ", "query ")))):
+        # Preserve observed HTTP method when the browser's older heuristic
+        # mislabeled an ordinary JSON search request as GraphQL.
+        if method == "GQL" and candidate.get("http_method"):
+            method = str(candidate["http_method"]).upper()
+        if method != "WS" and is_graphql_request(url, candidate.get("post_data")):
             method = "GQL"
         if method not in {"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "WS", "GQL"}:
             continue
@@ -158,7 +165,16 @@ def normalize_candidates(candidates: list[dict]) -> list[dict]:
         host = parsed.hostname.lower()
         key = (method, host, path)
         query = [_field(k, v, False) for k, v in parse_qsl(parsed.query, keep_blank_values=True)]
-        body = _body_fields(candidate.get("post_data"))
+        if method == "GQL" and is_raw_graphql_document(candidate.get("post_data")):
+            # Raw GraphQL query text must never become a form field *name*.
+            body = [_field("query", None, True, "string")]
+        else:
+            body = _body_fields(candidate.get("post_data"))
+        if method == "GQL":
+            body.extend(
+                _field("variables." + name, None, False, fallback_type=field_type)
+                for name, field_type in observed_variable_types(candidate.get("post_data"))
+            )
         body.extend(_field(name, None, False) for name in candidate.get("body_fields", []))
         query.extend(_field(name, None, False) for name in candidate.get("query_fields", []))
         path_params = []
@@ -198,7 +214,8 @@ def normalize_candidates(candidates: list[dict]) -> list[dict]:
                 "params": {"path": path_params, "query": _merge_fields(query), "body": _merge_fields(body)},
                 "evidence": [],
                 "confidence": float(candidate.get("confidence", 0.5)),
-                "note": candidate.get("note") or infer_note(path),
+                "note": (operation_note(url, candidate.get("post_data")) if method == "GQL"
+                         else candidate.get("note") or infer_note(path)),
             }
             if candidate.get("response_content_type") or candidate.get("response_fields"):
                 entry["response"] = {
@@ -219,7 +236,12 @@ def normalize_candidates(candidates: list[dict]) -> list[dict]:
                     "content_type": candidate.get("response_content_type") or "application/octet-stream",
                     "fields": list(dict.fromkeys(candidate.get("response_fields") or []))[:100],
                 }
-            if candidate.get("note"):
+            if method == "GQL":
+                # Never export untrusted browser note or raw GraphQL content.
+                proposed = operation_note(url, candidate.get("post_data"))
+                if proposed != "GraphQL endpoint observed":
+                    entry["note"] = proposed
+            elif candidate.get("note"):
                 entry["note"] = candidate["note"]
         for item in evidence:
             if item not in entry["evidence"]:
