@@ -85,7 +85,8 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 status, typ, body = 200, 'text/html; charset=utf-8', (
                     '<!doctype html><html><head><title>Private dashboard</title></head>'
-                    '<body><h1>Dashboard</h1><img src="http://offscope:8765/forbidden-auth" alt="blocked">'
+                    '<body><h1>Dashboard</h1><a href="/reports">Reports</a>'
+                    '<img src="http://offscope:8765/forbidden-auth" alt="blocked">'
                     '<script src="/dashboard.js"></script></body></html>'
                 ).encode()
         elif path == '/dashboard.js':
@@ -99,6 +100,36 @@ class Handler(BaseHTTPRequestHandler):
                 status, typ, body = 401, 'application/json', b'{"error":"unauthorized"}'
             else:
                 status, typ, body = 200, 'application/json', b'{"ok":true,"subject":"fixture-user"}'
+        elif path == '/reports':
+            cookie = self.headers.get('Cookie', '')
+            if 'synthetic-session=ok' not in cookie:
+                status, typ, body = 401, 'text/html; charset=utf-8', b'Unauthorized'
+            else:
+                status, typ, body = 200, 'text/html; charset=utf-8', (
+                    '<!doctype html><html><body><h1>Reports</h1>'
+                    '<a href="/reports/annual">Annual report</a>'
+                    '<a href="/logout">Do not visit logout</a></body></html>'
+                ).encode()
+        elif path == '/reports/annual':
+            cookie = self.headers.get('Cookie', '')
+            if 'synthetic-session=ok' not in cookie:
+                status, typ, body = 401, 'text/html; charset=utf-8', b'Unauthorized'
+            else:
+                status, typ, body = 200, 'text/html; charset=utf-8', (
+                    '<!doctype html><html><body><h1>Annual report</h1>'
+                    '<script src="/report-app.js"></script></body></html>'
+                ).encode()
+        elif path == '/report-app.js':
+            status, typ, body = 200, 'application/javascript', (
+                'fetch("/api/annual-report").then(r=>r.json()).then(data=>'
+                '{window.annualFixture=data.year;});'
+            ).encode()
+        elif path == '/api/annual-report':
+            cookie = self.headers.get('Cookie', '')
+            if 'synthetic-session=ok' not in cookie:
+                status, typ, body = 401, 'application/json', b'{"error":"unauthorized"}'
+            else:
+                status, typ, body = 200, 'application/json', b'{"year":2026,"value":"synthetic-annual"}'
         elif path == '/redirect-offscope':
             # The crawler and browser must refuse the second-hop destination.
             self.send_response(302)
