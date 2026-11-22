@@ -372,3 +372,6 @@ GitHub CI 合成环境由 SPA 扩展到 SPA+SSR 双场景，各运行两次。SS
 V16 的逐跳安全 HTTP 路由对长期未结束的 SSE 流可能等待到超时。新增独立 `sse_sampling.py`，识别 Chromium 的 `eventsource` 请求，继续使用 ScopeGuard 与共享 RequestGate；用禁止重定向的 HTTPX 流式连接读取**真实首个完整 SSE 数据事件**（最多 32 KiB、5 秒、同 URL 3 次），再转发原始事件字节给浏览器，不制造虚构事件、HTTP 状态或请求证据。不会发送认证 Cookie/配置凭据，也不能承担持续多事件流代理。
 
 在 CI 增加真实延迟关闭的 SSE 合成服务端；SPA、SSR、SSE 各两轮，分别检验非空 API、HAR/JSONL、独立 Schema 和未授权服务接收端未遭访问。设计依据、测试与残留兼容性风险详见 [V17 验收](docs/ACCEPTANCE_V17_2026-11-22.md)；真正结果以当前 GitHub Actions 运行状态为准。正式 S1～S5 隐藏分数仍未验证。
+
+
+**V17 最终实测（2026-11-22）**：[GitHub Actions](https://github.com/David-tiao/API/actions/runs/45019475066) 绑定代码提交 `0bd65699`，全仓库 **169 passed**、Docker **28 秒/约 2.86 GB**、SPA/SSR/SSE 各两轮、**6/6 Schema/HAR/日志检查通过**、未授权合成服务端零禁止请求。首轮 SSE 因 `bytearray` 与 Playwright 类型不匹配失败，修复后由真实长连接与 Chromium 双轮闭环验证；不意味着完整 SSE 订阅语义或正式 S1～S5 隐藏基准已通过。见 [V17 验收](docs/ACCEPTANCE_V17_2026-11-22.md)。

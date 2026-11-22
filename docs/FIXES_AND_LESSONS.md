@@ -226,3 +226,8 @@ V15 只有允许 GET 的正向测试，并没有真实证明跨域页面资源�
 **解决**：单独 `sse_sampling.py` 使用 HTTPX 流式读取并禁用任何 3xx 自动跳转；仅在 ScopeGuard/RequestGate 允许的 GET 上执行。最多 32 KiB/5 秒/3 次相同 URL 采样，只有真实完整 `data:` 帧才可返回给 Playwright；拒绝仅注释心跳、HTML/JSON 伪装、错误/跳转、超时和巨型事件。不写入真实事件数据文件；HAR/JSONL 由后续 Playwright 的响应事件处理器给出，供 EvidenceAuditor 审计。
 
 **测试依据**：11 项纯 HTTPX MockTransport SSE 测试加 4 项真实 loopback 合成 HTTP fixture 测试本地通过；模拟 route 适配的新增 6 项及 Docker 六轮将在 GitHub 精确提交中验证。不能说本地测试就是完整 S5 兼容性。
+
+
+### V17：字符串内容相等不代表 API 类型契约成立
+
+首轮 SSE MockTransport 比较 `bytearray(b"data:...") == b"data:..."` 会得到 True，却掩盖了 Playwright 仅接受 `bytes`/字符串的输入约束。真实 Docker 首轮因 SSE 无有效结果而失败；随后添加 `type(body) is bytes` 强类型断言和真实 loopback 长连接回归，修复后 [Actions](https://github.com/David-tiao/API/actions/runs/45019475066) **169 passed、六轮 Chromium、独立 Schema/HAR/日志及越界接收方全部通过**。经验：跨语言/跨运行时边界的测试必须验证**值、类型、真实接口调用与生命周期**，不能只有纯函数 Mock 的返回值相等。

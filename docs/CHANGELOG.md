@@ -375,3 +375,10 @@ V16 首次 GitHub Actions [运行记录](https://github.com/David-tiao/API/actio
 [修补版 GitHub Actions](https://github.com/David-tiao/API/actions/runs/45017605857) 绑定提交 `a171604b325b93abed9958c4c7c4422afb1c182b`：**150 项全仓库 pytest 通过**、Docker 构建 **26 秒**、镜像 **2,864,219,528 字节**；SPA 两轮与 SSR 两轮共四次 Chromium 运行均成功，**4/4 独立 Schema 校验**和请求 HAR/JSONL 对照通过。之前产生 2 次请求的 `offscope` 容器本轮**未收到任何禁止路径请求**，因此 **V16 合成站点负向安全测试 PASS**。
 
 不等于正式隐藏场站与代理级审计通过；详细失败前后对照、残留的 SSE/POST/HTTPS 跳转兼容性风险见 [V16 验收报告](ACCEPTANCE_V16_2026-11-22.md)。
+
+
+### V17 真实验收闭环：SSE 返回类型修复并通过六轮容器测试
+
+首轮 [Actions](https://github.com/David-tiao/API/actions/runs/45019132586) 168 项 pytest 通过，但 SSE 正式结果为空，Docker 整体 FAIL。随后确认真实上游事件样本的类型为 `bytearray`；尽管字节内容符合测试预期，却不能直接传给 Playwright `route.fulfill`。修复为不可变 `bytes`，并增加严格类型断言与真实长期运行的 HTTPX loopback 测试。
+
+[修复后 Actions](https://github.com/David-tiao/API/actions/runs/45019475066) 对精确代码 `0bd65699` **completed/success**：169 项全仓库 pytest、28 秒 Docker 构建、镜像 2,864,226,562 字节、SPA/SSR/SSE 各两轮真实 Chromium 全部成功，**6/6 独立 Schema 与 HAR/JSONL 核查通过**；未授权接收端未看到禁止请求。V17 证明了受控真实 SSE 首事件的发现，不代表完整订阅恢复或官方隐藏 S5 达标。详见 [V17 完整验收](ACCEPTANCE_V17_2026-11-22.md)。
