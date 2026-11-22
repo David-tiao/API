@@ -24,6 +24,14 @@
 
 此项修改尚须等待包含它的 GitHub Actions 执行完成。上一轮 209 项测试、8 次 Docker 运行对应更早的“仅登录后深层导航”提交，不应混写为当前日志变更已通过。
 
+## 已接入：S4 签名字段与 GraphQL 识别
+
+- `api_extractor/signature_semantics.py` + `normalization.py`：从真实浏览器请求中提取有界的签名字段名与位置。只注记字段名，不保存签名值、不尝试破解或重放算法；HTTP 失败响应不被当成有效签名证据。
+- `api_extractor/graphql_semantics.py`、`candidates.py` + `normalization.py`：保留原始 HTTP method，基于实际 GraphQL 文档和持久查询结构识别请求。普通 REST 搜索的 `{"query":"shoes"}` 不误判成 GQL。GraphQL 参数只保留变量名和推断类型，不输出变量原值或原始查询文本。
+- 新增 `tests/test_signature_field_metadata.py` 与 `tests/test_graphql_classification.py`；是否全部通过以最新 GitHub Actions 运行结果为准。
+
+**功能边界**：本分支不承诺通用签名算法还原，也不做 GraphQL Schema 内省；仍遵循原 CLI/Schema，且只采集授权站点自身实际发出的请求。
+
 ## 验收门槛
 
 - 当前分支全仓库 pytest 和语法检查通过。
@@ -36,6 +44,6 @@
 
 ## 仍未集成的内容
 
-此前本地交付的 V22–V27 离线补丁（日志阶段兼容、签名/GraphQL 增强、离线证据审计和整合器等）**尚未在本分支执行完整集成**，不得借用其中专项测试数量宣称 GitHub 最新代码已完成这些增强。
+此前本地交付的 V24–V27 离线补丁（日志阶段兼容、签名/GraphQL 增强、离线证据审计和整合器等）**尚未在本分支执行完整集成**，不得借用其中专项测试数量宣称 GitHub 最新代码已完成这些增强。
 
-正式交付尚需：逐项合入并回归 V20–V27、代理/DNS 范围审计、真实 TLS/SSO 兼容、S4/S5 授权场景覆盖率、数据安全与公开仓库历史材料审查，以及最终 Docker/Chromium 与陌生站点验证。
+正式交付尚需：逐项合入并回归 V24–V27、代理/DNS 范围审计、真实 TLS/SSO 兼容、S4/S5 授权场景覆盖率、数据安全与公开仓库历史材料审查，以及最终 Docker/Chromium 与陌生站点验证。
