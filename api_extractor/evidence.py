@@ -26,8 +26,12 @@ class EvidenceAuditor:
             return None
         return (method.upper(), parsed.hostname.lower(), normalize_path(parsed.path))
 
-    def _load_log(self) -> set[tuple[str, str, str, int, int]]:
-        """Index valid dynamic requests from this invocation's JSONL rows only."""
+    def _load_log(self) -> set[tuple[str, str, int, int]]:
+        """Index exact observed wire requests from the current invocation only.
+
+        Endpoint paths may be grouped by {id}, but a HAR entry must match the
+        same concrete URL (including scheme, port, path and query) as tool.log.
+        """
         index = set()
         path = self.root / "tool.log"
         if not path.is_file():
@@ -52,9 +56,10 @@ class EvidenceAuditor:
                         continue
                     if status < 100 or (status >= 400 and status not in {401, 403}):
                         continue
-                    identity = self._identity(str(row.get("method", "")), str(row.get("url", "")))
-                    if identity:
-                        index.add((*identity, idx, status))
+                    method = str(row.get("method", "")).upper()
+                    url = str(row.get("url", ""))
+                    if self._identity(method, url):
+                        index.add((method, url, idx, status))
                 except (ValueError, TypeError, AttributeError):
                     continue
         return index
@@ -116,7 +121,9 @@ class EvidenceAuditor:
             status = int(response.get("status", 0))
         except (TypeError, ValueError):
             return False
-        return (*identity, idx, status) in self._observed
+        # Exact HAR/log URL correlation prevents false matches across numeric
+        # IDs, query values, schemes and ports that share a normalized API path.
+        return (method, str(request.get("url", "")), idx, status) in self._observed
 
     def audit(self, endpoints: list[dict]) -> tuple[list[dict], int, int]:
         """Return (clean endpoints, invalid evidence count, dropped endpoint count)."""
