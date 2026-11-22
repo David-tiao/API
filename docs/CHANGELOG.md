@@ -401,3 +401,7 @@ V16 首次 GitHub Actions [运行记录](https://github.com/David-tiao/API/actio
 ### V18 首轮回归：旧的“一概拒绝”断言升级为安全条件测试
 
 [首轮 Actions](https://github.com/David-tiao/API/actions/runs/45021056967) 全仓库 200 项通过、2 项失败，Docker 未执行。两项是上一阶段针对 POST 302 与 GET→HTTPS 的绝对拒绝测试；V18 只开放同主机受控安全路径。保留用例并改为检查**实际二跳、POST Body 清除、Cookie/Auth/Header 不泄露**，原越界和不可重放 POST 的禁止断言继续存在。不能把旧断言不兼容说成新功能已成功；必须等待第二轮 GitHub CI。
+
+### V18 CI 第二轮：HTML document POST 的实际日志分层
+
+[运行结果](https://github.com/David-tiao/API/actions/runs/45021191967)：全仓库 202 项通过；SPA/SSR/SSE 六轮 Docker 成功，但 Login 的验收脚本将 HTML 表单 `document` 提交误要求为动态 API 的 `phase=dynamic`。实际 POST 303 应由逐跳网络日志 `phase=redirect` 证明；已改为接受动态或逐跳相位，但仍强制 URL 仅为 `/api/session`、**真正的 303 及后续 200**、完整 Cookie 私有 GET 及 HAR/Schema 核对。继续由真实 Docker 决定最终 PASS/FAIL。

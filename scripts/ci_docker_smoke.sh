@@ -95,7 +95,7 @@ result = json.loads((root / 'result.json').read_text())
 rows = [json.loads(s) for s in (root / 'tool.log').read_text().splitlines() if s.strip()]
 assert any(r.get('note') == 'run_status:completed' for r in rows), 'Incomplete browser run'
 if scenario == 'login':
-    posts = [r for r in rows if r.get('phase') == 'dynamic' and r.get('method') == 'POST']
+    posts = [r for r in rows if r.get('phase') in {'dynamic', 'redirect'} and r.get('method') == 'POST']
     assert posts and all(r.get('url', '').endswith('/api/session') for r in posts), (
         'Unexpected state-changing POST in login scenario')
     assert any(r.get('phase') == 'redirect' and r.get('method') == 'POST'

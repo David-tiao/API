@@ -36,3 +36,10 @@
 [GitHub Actions 首轮](https://github.com/David-tiao/API/actions/runs/45021056967)：精确 checkout **200 passed / 2 failed**，Docker 因离线门禁失败而未执行。失败测试是 V16 旧的“任何 POST→302 都拒绝”和“HTTP→HTTPS 一概拒绝”断言；这两类行为正是 V18 受控放开范围。旧 FakeRoute 也没有请求 Header，无法验证新逻辑的敏感字段移除。
 
 **整改**：为 FakeRoute 加入 Content-Type/Cookie 等模拟 Header，将两项改为正向强断言：相同 Host 的 POST 302 必须使用 GET 且 `post_data=""`、不得复制 Cookie/Auth/Header；同 Host GET 的 HTTP→HTTPS 升级须显式使用新 URL，仍不得复制敏感 Header。新 V18 测试与旧的跨域阻断及 POST 307 拒绝测试继续保留。此改动不放宽 R5/未知 POST 安全标准；最新完整 CI 和 Docker 结果另行确认。
+
+
+## CI 第二轮：登录表单为 document 请求，修正真实日志检查
+
+[GitHub Actions 第二轮](https://github.com/David-tiao/API/actions/runs/45021191967)：同一提交全仓库 **202 passed**，Docker 构建约 33 秒；SPA、SSR、SSE 双轮全部通过，首次 Login 场景运行到验收断言时失败。原因：测试要求登录 POST 必须标记 `phase=dynamic`，但页面表单 POST 的浏览器资源类型是 `document`，原动态 API 观察器仅记录 `fetch/xhr/eventsource`；该 POST 通过浏览器路由显式 `route.fetch` 实际发生，真实 303 则记在 `phase=redirect`。
+
+**修正验收口径而不是绕过真实性**：未知 POST 仍不能发生；允许的唯一 POST 必须是 `/api/session`，且后续强制核验它具有 `phase=redirect, status=303` 的真实记录，目标 `GET /dashboard` 必须是 200。继续要求登录后的私有 `GET /api/private` 为正式结果且 HAR/日志状态 200。若登录 Cookie 不生效，下一轮仍会失败并继续修复。
