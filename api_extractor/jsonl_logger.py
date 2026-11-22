@@ -59,14 +59,24 @@ class JsonlLogger:
         self._lock = threading.Lock()
 
     def write(self, method: str, url: str, status: int, phase: str, **extra: object) -> None:
+        # Public R6 log phase is restricted to static/dynamic/verify.
+        # Record internal redirect/probe categories in a separate detail field.
+        if phase in {"static", "dynamic", "verify"}:
+            public_phase, detail_phase = phase, None
+        elif phase == "redirect":
+            public_phase, detail_phase = "dynamic", phase
+        else:
+            public_phase, detail_phase = "verify", str(phase)[:64]
         row = {
             "ts": datetime.now(timezone.utc).astimezone().isoformat(timespec="milliseconds"),
             "method": method,
             "url": redact_url(url),
             "status": int(status),
-            "phase": phase,
+            "phase": public_phase,
         }
         row.update({k: v for k, v in extra.items() if v is not None})
+        if detail_phase is not None:
+            row["detail_phase"] = detail_phase
         with self._lock:
             self._file.write(json.dumps(row, ensure_ascii=False) + "\n")
             self._file.flush()
