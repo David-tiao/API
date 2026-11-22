@@ -303,3 +303,31 @@ bash scripts/acceptance_stage10.sh https://你的授权站点/ ./site.json 180
 ## 19. V11：安全作用域与 WebSocket 全局门控
 
 已经对 `ScopeGuard` 的 R5 公共后缀判定做 fail-closed 修复，并使 WebSocket 连接纳入共享 RequestGate。变更目的、代码与 19 项专项离线测试见 [docs/CHANGELOG.md](docs/CHANGELOG.md)（V11），最新验收边界见 [docs/ACCEPTANCE_V11_2026-11-22.md](docs/ACCEPTANCE_V11_2026-11-22.md)。**没有重新运行真实 Docker/Chromium；R6 静态 API 的真实请求证据仍是待办**。保持原 CLI、Schema 和项目软件版本 `0.1.0` 不变。
+
+
+## 20. V12：正式接口与静态候选分开输出
+
+**行为变化**：`result.json` 只输出具有已核验 HAR + 本轮请求日志支持的接口；仅在 JS/HTML 中出现、尚未真实请求过的线索保存在同目录 `static_candidates.json`，标记为未验证。不会为静态候选伪造请求日志，也不会为了补证据擅自调用未知的状态变更 API。固定 CLI、原 `result.schema.json` 和 Dockerfile 不变。
+
+本轮 50 项相关离线测试通过，但尚未重新运行 GitHub 最新完整检出版本、真实 Docker/Chromium 或接口重放。**这种精确率优先策略可能降低静态站点的覆盖率，不能保证最终评分更高。** 详细取舍见 [docs/CHANGELOG.md](docs/CHANGELOG.md)（V12）与 [V12 验收报告](docs/ACCEPTANCE_V12_2026-11-22.md)。
+
+
+## 21. V13：本地显式授权 GET 验证
+
+V12 默认不把未观察到的 JS/HTML 请求当成正式 API。V13 增加**仅限自己部署或明确获授权的练习站点**的可选功能：在本地 `site.json` 增加最多 5 个操作者事先确认可安全调用的完整 GET URL。
+
+```json
+{
+  "site_id": "local-practice",
+  "allowed_hosts": ["127.0.0.1"],
+  "credentials": [],
+  "headers": {},
+  "explicit_readonly_get_urls": [
+    "http://127.0.0.1:3000/api/public-items"
+  ]
+}
+```
+
+只有该 URL 同时存在于静态发现的 GET 候选，经过作用域和共享限流器检查，且得到真正的 2xx JSON 响应，才会记录 `tool.log` 和 `evidence/probe.har` 并在证据审计通过后进入 `result.json`。默认无字段时验证请求数为 0；不发送 Cookie、用户名/密码及自定义 Header，不跟随重定向，拒绝 Query、URL 凭据与动态占位符。
+
+**GET 本身不保证只读，必须自行确认该 URL 的授权和无副作用。官方第 3.6 节不允许针对隐藏站点手工枚举接口作为适配方式**；本选项仅用于本地实验，不应作为正式评分提升的依据。87 项隔离离线测试通过，不意味着真实 Docker/Chromium/重放通过。见 [CHANGELOG](docs/CHANGELOG.md) V13、[V13 验收记录](docs/ACCEPTANCE_V13_2026-11-22.md) 与 [ADR-0002](docs/adr/0002-local-get-verification.md)。
