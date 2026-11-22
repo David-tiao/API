@@ -109,10 +109,12 @@ else:
     assert not any(r.get('method') == 'POST' for r in rows), 'Unknown POST was invoked!'
 eps = result['endpoints']
 if scenario == 'login':
-    assert 1 <= len(eps) <= 2, f'Login must contain genuine API observations: {eps}'
+    assert 2 <= len(eps) <= 3, f'Login must contain private and deep APIs: {eps}'
     matching = [e for e in eps if (e['method'], e['host'], e['path']) == ('GET', 'fixture', expected)]
     assert len(matching) == 1, f'Authenticated GET API missing: {eps}'
-    assert all((e['method'],e['path']) in {('GET', '/api/private'), ('POST', '/api/session')} for e in eps)
+    assert all((e['method'],e['path']) in {('GET', '/api/private'), ('GET', '/api/annual-report'), ('POST', '/api/session')} for e in eps)
+    assert any((e['method'],e['path']) == ('GET', '/api/annual-report') for e in eps), (\
+        'Authenticated two-hop report API was not discovered')
     ep = matching[0]
 else:
     assert len(eps) == 1, f'Expected exactly one real API in {scenario}, got {eps}'
