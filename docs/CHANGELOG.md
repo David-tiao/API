@@ -4,7 +4,7 @@
 
 > 项目：[David-tiao/API](https://github.com/David-tiao/API) · 选题 B：前端 API 提取工具  
 > 记录日期：2026-11-22（Asia/Singapore）  
-> **说明**：以下“V0～V17”是便于理解的**开发迭代阶段编号**，不是正式 Git Tag 或发布版本号。当前 `pyproject.toml` 中的软件版本仍为 `0.1.0`，不要把阶段编号当作发行版本。
+> **说明**：以下“V0～V18”是便于理解的**开发迭代阶段编号**，不是正式 Git Tag 或发布版本号。当前 `pyproject.toml` 中的软件版本仍为 `0.1.0`，不要把阶段编号当作发行版本。
 
 ## 验收快照：V10（2026-11-22，非功能版本）
 
@@ -23,6 +23,20 @@
 代码基线 `466dde4019d20da5a6deff52f4dc227b11f68ec7` 首轮 GitHub Actions [运行记录](https://github.com/David-tiao/API/actions/runs/45011683183) 已完成，两个 Job 均成功：**全仓库 pytest 137 项通过**；Docker 原构建 **28 秒**、镜像大小 **2,864,215,392 字节**；internal Docker 网络中的真实 Chromium 两轮分别发现 **1 条**合成 GET API，集合一致。最新增量加强独立 JSON Schema/HAR/日志对齐及所有 main 提交的 CI 触发，等新流水线结束再认定最新版通过。
 
 这只是自建模拟站点基础验收，非 S1～S5 官方隐藏站点、真实网络越界审计或历史保密清理的最终验收。详见 [V15 验收记录](ACCEPTANCE_V15_2026-11-22.md)。
+
+## V18：登录后 302/303 与 HTTPS 升级的安全逐跳策略（2026-11-22）
+
+**目的**：在保留 V16“禁止浏览器自动跨域重定向”修复与 V17 SSE 兼容路径的前提下，支持**已经由授权用户登录交互产生**的 POST→GET 重定向。此前登录 POST 即使返回合法 303，也会在原路由处理时被拒绝，可能降低 S3 带登录页面的发现率。
+
+**新模块**：`api_extractor/redirect_policy.py` 将 301/302/303/307/308 的下一跳授权判断、方法转换和敏感 Header 过滤决策隔离成纯函数。POST 只有在 **301/302/303 且同主机、同协议、同端口**时才切换 GET；307/308 不重复发送非幂等 POST，PUT/PATCH/DELETE 也不会自动重放。GET/HEAD 可在显式允许的 Host 之间继续，**只允许同主机 HTTP→HTTPS 升级，拒绝 HTTPS→HTTP 降级**。每跳继续 ScopeGuard、共享 RequestGate、最多七跳；跨来源跳转仅保留 Accept/Accept-Language/User-Agent Header，避免直接转发 Cookie、Authorization 或 POST Body。
+
+**证据修正**：`route.fetch(max_redirects=0)` 每次真实 3xx 及后续请求均在 `tool.log` 中写入 `phase=redirect` 的实际方法、URL 和响应码；浏览器的原始 POST 若实际收到 303，即使最终页面被 fulfill 为 200，正式 `dynamic` 日志与 HAR 仍记录 **POST 的真实首跳 303**，不会伪称 POST 200。
+
+**Docker 回归**：自建合成站点增加用户名/密码的 `POST /api/session` → 303 `/dashboard` → 带 Cookie 请求 `GET /api/private` 流程。正确会话才返回 200，未授权时 401。仅该登录场景提供完全虚构的专用测试账号；SSR 未知 POST 仍不执行。保留 offscope 的接收日志及 SPA/SSR/SSE 断言，从三场景六轮扩展为**四场景八轮真实 Chromium**，每轮独立 Schema、HAR/JSONL 核对与场景双轮稳定性。新增 `tests/test_redirect_policy.py` 及 `tests/test_browser_auth_redirect.py`，并增强 fixture。
+
+**界限与风险**：该实现只能在模拟环境说明登录后的会话是否可用，不能证明任意 S3 网站的复杂 OAuth/OIDC、多域 SSO、验证码、CSRF 保护或真实 HTTPS 证书均可处理。HTTP→HTTPS 先由纯规则与假浏览器路由测试覆盖，尚未构造受信任证书的真实 TLS Docker 测试。Playwright 拦截器中的 route.fetch→fulfill 也可能与原浏览器导航 URL 存在差异；必须以真实 CI 为准，不能仅凭补丁代码写成 PASS。
+
+**初始验证**：本地重定向策略 24 项纯规则测试及合成站点 5 项 loopback HTTP 测试通过，共 29 项；实际完整 GitHub pytest 和八轮 Docker 的结果将另附可核查 Actions 链接。详见 [V18 验收](ACCEPTANCE_V18_2026-11-22.md)。
 
 ## V17：真实 SSE 流的有界观察与跨域安全隔离（2026-11-22）
 

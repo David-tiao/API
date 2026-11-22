@@ -231,3 +231,12 @@ V15 只有允许 GET 的正向测试，并没有真实证明跨域页面资源�
 ### V17：字符串内容相等不代表 API 类型契约成立
 
 首轮 SSE MockTransport 比较 `bytearray(b"data:...") == b"data:..."` 会得到 True，却掩盖了 Playwright 仅接受 `bytes`/字符串的输入约束。真实 Docker 首轮因 SSE 无有效结果而失败；随后添加 `type(body) is bytes` 强类型断言和真实 loopback 长连接回归，修复后 [Actions](https://github.com/David-tiao/API/actions/runs/45019475066) **169 passed、六轮 Chromium、独立 Schema/HAR/日志及越界接收方全部通过**。经验：跨语言/跨运行时边界的测试必须验证**值、类型、真实接口调用与生命周期**，不能只有纯函数 Mock 的返回值相等。
+
+
+## 21. V18：不能用真实登录 POST 的最终页面响应码替代首跳状态
+
+**根因**：V16 为阻止浏览器 302 跳向越界 Host，采用 `route.fetch(max_redirects=0)` 后手动处理每跳。先前策略保守拒绝任何 POST 后重定向，使合法的登录 303 不能继续；此外，若简单 fulfill 最终 200，会把初始上游 POST 的 303 误写成 200。
+
+**修复**：独立 `redirect_policy.py` 纯函数判断下一跳。仅同主机、同协议、同有效端口的 301/302/303 POST 登录形式允许转换成 GET；显式清除 POST Body 和敏感请求 Header。禁止 PUT/PATCH/DELETE 和 POST 的 307/308 重放、HTTPS 降级与越界；GET HTTP→HTTPS 同 Host 可以进入下一跳，但真实 TLS 仍待专项验证。每次 fetch 均 `max_redirects=0`，RPS 单独计数，避免绕开浏览器拦截或信号量死锁。首跳真实 303 记录在动态 HAR/日志，后续 GET 记录在 redirect 阶段，不凭空增添业务请求。
+
+**验收**：新规则与真实 loopback fixture 本地 29 项通过，GitHub 精确提交全量 pytest 与四场景八轮 Docker 验证待 Actions 实际返回。若登录无法保留 Cookie，应修复网络传递而不是伪造 200。

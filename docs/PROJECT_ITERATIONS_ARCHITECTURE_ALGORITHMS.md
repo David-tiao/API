@@ -207,6 +207,14 @@ V14 新增 `offline_benchmark.py`，**不接入扫描器生产流水线**。开�
 
 **安全与语义代价**：采样返回的短连接与真实无限流有区别，消费者需要允许短流重连；没有转发 Cookie/认证 Header，无法覆盖部分登录态 SSE；也不保留多帧订阅语义。这是**受控的真实事件发现**而非通用 SSE 代理，需避免在评测中被误解为完整复原订阅。详见 [V17 验收](ACCEPTANCE_V17_2026-11-22.md)。
 
+## 5.11 V18：可测试的重定向决策表与真实状态映射
+
+从 `DynamicAnalyzer._route_http` 分离出纯函数 `decide_redirect(current_url, status, location, current_method, guard)`：先 `urljoin` 解析 Location，随后 ScopeGuard 判定最终 Host，检查方法与协议。允许同主机同协议同端口的 POST 在 301/302/303 后按标准浏览器惯例切换 GET，明确删除请求 Body 并用小型安全 Header 白名单阻止继承 POST Cookie/Authorization。GET/HEAD 在授权 Host 之间允许相对及绝对跳转；HTTP→HTTPS 限相同 Host，HTTPS 降级禁止。307/308 的非幂等 POST、PUT/PATCH/DELETE 等不重放。
+
+Browser RequestGate 对原请求占一个并发槽，每次下一跳通过 `throttle()` 计 RPS；`route.fetch(max_redirects=0)` 避免 Playwright 自动重定向，循环最多七跳。由于浏览器对最终 `fulfill` 观察到的状态可能与原服务器 303 不同，`_first_wire_status` 保存**最初真实响应状态**，后续请求的实际状态另在 `phase=redirect` 日志记录；动态结果与 HAR 报告的是原始请求的真实首跳状态。SSE 独立有界采样保持不变。
+
+**限制**：自动化重定向会改变导航 URL 和认证 Cookie 的具体浏览器语义，本轮要求真实 Docker 登录 + 会话 Cookie 测试；该路径不证明跨域 OAuth、证书链信任、复杂重放。详见 [V18 验收](ACCEPTANCE_V18_2026-11-22.md)。
+
 ## 6. 当前验证等级与未解决问题
 
 本轮不扫描真实网站、不运行 Docker/Chromium。隔离 Python 工作副本的离线测试和本地模拟 HTTP 夹具 **共 35 项通过**，Python `compileall` 及 Bash 语法检查通过。测试新增了证据文件缺失、路径穿越、越界 symlink、HAR 错索引、错 Method、日志缺失及 WS/GQL 映射等场景。

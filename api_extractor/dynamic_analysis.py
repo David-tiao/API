@@ -14,6 +14,7 @@ from playwright.async_api import async_playwright
 from .config import SiteConfig
 from .jsonl_logger import JsonlLogger, redact_url
 from .request_control import RequestGate
+from .redirect_policy import decide_redirect, safe_followup_headers
 from .scope import ScopeGuard
 from .sse_sampling import sample_sse
 
@@ -57,6 +58,9 @@ class DynamicAnalyzer:
     def __init__(self, target: str, config: SiteConfig, guard: ScopeGuard, gate: RequestGate, logger: JsonlLogger, out_dir: Path, *, sse_transport: httpx.AsyncBaseTransport | None = None):
         self._sse_transport = sse_transport
         self._sse_attempts: dict[str, int] = {}
+        # Upstream 3xx status of a browser request that we fulfilled with the
+        # final resource. Do not mistake a synthetic final 200 for the wire 303.
+        self._first_wire_status: dict[int, int] = {}
         self.target = target
         self.config = config
         self.guard = guard
@@ -194,40 +198,56 @@ class DynamicAnalyzer:
             await self._limiter.before(request_id)
             acquired = True
             current = request.url
-            original_scheme = urlsplit(current).scheme
             method = request.method.upper()
+            cleared_body = False
+            clean_headers = False
             for hop in range(7):
                 if hop:
-                    # This request already occupies a concurrency slot. Charge
-                    # each follow-up HTTP request to the shared RPS gate only.
+                    # Redirects occupy the original concurrency slot but each
+                    # additional real HTTP hop consumes a new shared RPS token.
                     await self.gate.throttle()
                 options = {"max_redirects": 0, "timeout": 15000}
                 if hop:
                     options["url"] = current
+                    options["method"] = method
+                    if cleared_body:
+                        # Passing an explicitly empty string prevents the
+                        # Playwright APIRequestContext from inheriting POST data.
+                        options["post_data"] = ""
+                    if clean_headers:
+                        options["headers"] = safe_followup_headers(request.headers)
                 response = await route.fetch(**options)
                 location = response.headers.get("location")
                 if response.status not in {301, 302, 303, 307, 308} or not location:
+                    if hop:
+                        # A redirected request is a real wire fetch separate
+                        # from the browser's original intercepted request.
+                        self.logger.write(method, current, response.status, "redirect",
+                                          note="route_fetch_terminal")
                     await route.fulfill(response=response)
                     return
 
-                next_url = urljoin(current, location)
-                if not self.guard.is_allowed(next_url):
-                    self.logger.write("-", next_url, 0, "verify",
-                                      note="browser_redirect_blocked_by_scope")
+                # Preserve actual upstream status: the original POST often gets
+                # 303 even if browser-facing fulfillment ultimately renders 200.
+                if hop == 0:
+                    self._first_wire_status[request_id] = response.status
+                self.logger.write(method, current, response.status, "redirect",
+                                  note="route_fetch_redirect_response")
+                step, reason = decide_redirect(
+                    current, response.status, location, method, self.guard
+                )
+                if step is None:
+                    note = ("browser_redirect_blocked_by_scope"
+                            if reason == "blocked_by_scope"
+                            else "browser_redirect_unsafe_transition")
+                    self.logger.write("-", urljoin(current, location), 0, "verify",
+                                      note=note)
                     self._limiter.after(request_id)
                     await route.abort("blockedbyclient")
                     return
-
-                # This bounded adapter cannot preserve arbitrary method/body
-                # changes or cross-protocol redirects. Refuse them instead of
-                # risking an unguarded network request or POST replay.
-                if method not in {"GET", "HEAD"} or urlsplit(next_url).scheme != original_scheme:
-                    self.logger.write("-", next_url, 0, "verify",
-                                      note="browser_redirect_unsafe_transition")
-                    self._limiter.after(request_id)
-                    await route.abort("blockedbyclient")
-                    return
-                current = next_url
+                current, method = step.url, step.method
+                cleared_body = cleared_body or step.strip_request_body
+                clean_headers = clean_headers or step.strip_credentials
 
             self.logger.write("-", current, 0, "verify",
                               note="browser_redirect_limit")
@@ -305,7 +325,12 @@ class DynamicAnalyzer:
                     row = self._request_map.get(id(request))
                     if not row:
                         return
-                    row["status"] = response.status
+                    # Route.fulfill(final_response) makes the browser observe
+                    # final status 200 even if its original wire request was
+                    # redirected with 303. Record the original *wire* status.
+                    upstream_redirect_status = self._first_wire_status.pop(id(request), None)
+                    row["status"] = (upstream_redirect_status if upstream_redirect_status is not None
+                                     else response.status)
                     try:
                         request_headers = await request.all_headers()
                         safe_request_headers = {}
@@ -319,9 +344,11 @@ class DynamicAnalyzer:
                             else:
                                 safe_request_headers[lower_key] = value
                         row["headers"] = safe_request_headers
-                        headers = await response.all_headers()
-                        row["response_content_type"] = headers.get("content-type", "")
-                        if "json" in row["response_content_type"].lower():
+                        if upstream_redirect_status is None:
+                            headers = await response.all_headers()
+                            row["response_content_type"] = headers.get("content-type", "")
+                        # A 303 does not have the final dashboard's body/schema.
+                        if upstream_redirect_status is None and "json" in row["response_content_type"].lower():
                             body = await response.body()
                             if len(body) <= 1024 * 1024:
                                 payload = json.loads(body.decode("utf-8", errors="replace"))
@@ -329,7 +356,7 @@ class DynamicAnalyzer:
                     except Exception:
                         pass
                     api_method = self._api_method(row)
-                    self.logger.write(row["http_method"], row["url"], response.status, "dynamic", request_index=row["request_index"], resource_type=row["resource_type"])
+                    self.logger.write(row["http_method"], row["url"], row["status"], "dynamic", request_index=row["request_index"], resource_type=row["resource_type"])
                     row["method"] = api_method
                     if api_method == "GQL":
                         operation = self._graphql_operation(row.get("post_data"))

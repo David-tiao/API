@@ -27,3 +27,6 @@ V10 没有移动现有 Shell 脚本，避免历史 Ubuntu 命令失效。
 
 
 **V17 SSE 合成验收**：`ci_docker_smoke.sh` 在原 SPA/SSR 各两轮外，再执行两轮 `/sse`：fixture 的 `/api/stream` 发出真实事件后保持流开启 20 秒，测试 `DynamicAnalyzer` 是否能在 5 秒窗口内有界采样、给出经过 HAR/JSONL 校验的真正事件源端点。仍保留未授权 Host 接收端零越界和逐轮 Schema 断言。没有使用真实外站或账号。
+
+
+**V18** Docker 测试引入第四个 `login` 场景，只有它包含固定、公开无效的模拟账号（供本地合成站点验证）。服务器真实执行 POST 303 设置 Cookie，后续已登录 GET 私有 API 必须返回 200；同时核对 `tool.log` 的原始 POST=303、后续 GET=200，且不包含模拟密码。其他场景未知 POST 仍不调用；原有 offscope 接收日志零禁止请求断言不变。

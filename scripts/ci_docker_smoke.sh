@@ -45,12 +45,17 @@ assert opener.open("http://127.0.0.1:8765/", timeout=2).status == 200
 done
 
 printf '%s\n' '{"site_id":"ci-synthetic","allowed_hosts":["fixture"],"credentials":[],"headers":{}}' > "$tmp/site.json"
-for scenario in spa ssr sse; do
+# These are artificial credentials accepted only by our local fixture server.
+printf '%s\n' '{"site_id":"ci-synthetic-login","allowed_hosts":["fixture"],"headers":{},"credentials":[{"username":"fixture-user","password":"fixture-pass","login_hint":"http://fixture:8765/login"}]}' > "$tmp/site-login.json"
+for scenario in spa ssr sse login; do
   case "$scenario" in
     spa) TARGET='http://fixture:8765/'; EXPECTED='/api/items' ;;
     ssr) TARGET='http://fixture:8765/ssr'; EXPECTED='/api/ssr-items' ;;
     sse) TARGET='http://fixture:8765/sse'; EXPECTED='/api/stream' ;;
+    login) TARGET='http://fixture:8765/dashboard'; EXPECTED='/api/private' ;;
   esac
+  config="$tmp/site.json"
+  if [[ "$scenario" == login ]]; then config="$tmp/site-login.json"; fi
   for n in 1 2; do
     out="$tmp/$scenario-run-$n"
     mkdir -m 0777 "$out"
@@ -59,7 +64,7 @@ for scenario in spa ssr sse; do
       --name "api-ci-run-$scenario-$n-$$" --network "$network" \
       --user "$(id -u):$(id -g)" --read-only --shm-size=512m \
       -e HOME=/out/home -e TMPDIR=/out/tmp -e XDG_CACHE_HOME=/out/cache \
-      -v "$tmp/site.json:/cfg/site.json:ro" -v "$out:/out" \
+      -v "$config:/cfg/site.json:ro" -v "$out:/out" \
       "$IMAGE" --target "$TARGET" --config /cfg/site.json \
       --out /out/result.json --budget 90 \
       > "$out/stdout.log" 2> "$out/stderr.log" || {
@@ -89,10 +94,29 @@ expected, scenario = sys.argv[2:]
 result = json.loads((root / 'result.json').read_text())
 rows = [json.loads(s) for s in (root / 'tool.log').read_text().splitlines() if s.strip()]
 assert any(r.get('note') == 'run_status:completed' for r in rows), 'Incomplete browser run'
-assert not any(r.get('method') == 'POST' for r in rows), 'Unknown POST was invoked!'
+if scenario == 'login':
+    posts = [r for r in rows if r.get('phase') == 'dynamic' and r.get('method') == 'POST']
+    assert posts and all(r.get('url', '').endswith('/api/session') for r in posts), (
+        'Unexpected state-changing POST in login scenario')
+    assert any(r.get('phase') == 'redirect' and r.get('method') == 'POST'
+               and r.get('status') == 303 and r.get('url', '').endswith('/api/session')
+               for r in rows), 'Actual login POST 303 was not logged truthfully'
+    assert any(r.get('phase') == 'redirect' and r.get('method') == 'GET'
+               and r.get('status') == 200 and r.get('url', '').endswith('/dashboard')
+               for r in rows), 'Actual dashboard GET was not logged truthfully'
+    assert 'fixture-pass' not in (root/'tool.log').read_text(), 'Synthetic password exposed in log'
+else:
+    assert not any(r.get('method') == 'POST' for r in rows), 'Unknown POST was invoked!'
 eps = result['endpoints']
-assert len(eps) == 1, f'Expected exactly one real API in {scenario}, got {eps}'
-ep = eps[0]
+if scenario == 'login':
+    assert 1 <= len(eps) <= 2, f'Login must contain genuine API observations: {eps}'
+    matching = [e for e in eps if (e['method'], e['host'], e['path']) == ('GET', 'fixture', expected)]
+    assert len(matching) == 1, f'Authenticated GET API missing: {eps}'
+    assert all((e['method'],e['path']) in {('GET', '/api/private'), ('POST', '/api/session')} for e in eps)
+    ep = matching[0]
+else:
+    assert len(eps) == 1, f'Expected exactly one real API in {scenario}, got {eps}'
+    ep = eps[0]
 assert (ep['method'], ep['host'], ep['path']) == ('GET', 'fixture', expected), ep
 assert ep['evidence'], 'API has no evidence'
 if scenario == 'sse':
@@ -144,9 +168,9 @@ done
 
 # If scope filtering fails, the browser can reach this second container.
 # Check its real access log, not merely a string in the scanner's own JSONL.
-if docker logs "$offscope" 2>&1 | grep -E 'GET /forbidden-(resource|redirect)'; then
+if docker logs "$offscope" 2>&1 | grep -E 'GET /forbidden-(resource|redirect|auth)'; then
   echo 'SCOPE VIOLATION: out-of-scope synthetic server received a request' >&2
   exit 1
 fi
 echo 'Out-of-scope container saw no forbidden requests: PASS'
-echo 'V17 isolated Docker acceptance PASS: SPA, SSR and SSE, 2 independent runs each'
+echo 'V18 isolated Docker acceptance PASS: SPA, SSR, SSE and authenticated login, 2 independent runs each'

@@ -5,6 +5,7 @@ All endpoints and the out-of-scope host are synthetic; no external network neede
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import time
+from urllib.parse import parse_qs
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -69,6 +70,35 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.flush()
             time.sleep(20)
             return
+        elif path == '/login':
+            status, typ, body = 200, 'text/html; charset=utf-8', (
+                '<!doctype html><html><head><title>Synthetic login</title></head>'
+                '<body><h1>Login</h1><form action="/api/session" method="POST">'
+                '<input name="username" autocomplete="username">'
+                '<input type="password" name="password">'
+                '<button type="submit">Sign in</button></form></body></html>'
+            ).encode()
+        elif path == '/dashboard':
+            cookie = self.headers.get('Cookie', '')
+            if 'synthetic-session=ok' not in cookie:
+                status, typ, body = 401, 'text/html; charset=utf-8', b'Unauthorized'
+            else:
+                status, typ, body = 200, 'text/html; charset=utf-8', (
+                    '<!doctype html><html><head><title>Private dashboard</title></head>'
+                    '<body><h1>Dashboard</h1><img src="http://offscope:8765/forbidden-auth" alt="blocked">'
+                    '<script src="/dashboard.js"></script></body></html>'
+                ).encode()
+        elif path == '/dashboard.js':
+            status, typ, body = 200, 'application/javascript', (
+                'fetch("/api/private").then(r=>r.json()).then(data=>'
+                '{window.privateFixture=data.ok;});'
+            ).encode()
+        elif path == '/api/private':
+            cookie = self.headers.get('Cookie', '')
+            if 'synthetic-session=ok' not in cookie:
+                status, typ, body = 401, 'application/json', b'{"error":"unauthorized"}'
+            else:
+                status, typ, body = 200, 'application/json', b'{"ok":true,"subject":"fixture-user"}'
         elif path == '/redirect-offscope':
             # The crawler and browser must refuse the second-hop destination.
             self.send_response(302)
@@ -84,6 +114,28 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Cache-Control', 'no-store')
         self.end_headers()
         self.wfile.write(body)
+
+    def do_POST(self):
+        path = self.path.split('?', 1)[0]
+        # Only the explicitly configured login flow may submit a POST.
+        if path != '/api/session':
+            self.send_response(405)
+            self.send_header('Content-Length', '0')
+            self.end_headers()
+            return
+        length = min(int(self.headers.get('Content-Length', '0')), 8192)
+        body = self.rfile.read(length).decode('utf-8', errors='replace')
+        fields = parse_qs(body)
+        if fields.get('username') != ['fixture-user'] or fields.get('password') != ['fixture-pass']:
+            self.send_response(403)
+            self.send_header('Content-Length', '0')
+            self.end_headers()
+            return
+        self.send_response(303)
+        self.send_header('Location', '/dashboard')
+        self.send_header('Set-Cookie', 'synthetic-session=ok; HttpOnly; Path=/; SameSite=Lax')
+        self.send_header('Content-Length', '0')
+        self.end_headers()
 
     def log_message(self, format, *args):
         print('fixture: ' + (format % args), flush=True)

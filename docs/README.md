@@ -2,6 +2,7 @@
 
 | 目的 | 权威文档 |
 |---|---|
+| **V18** 安全登录重定向与八轮 Docker 验收 | [ACCEPTANCE_V18_2026-11-22.md](ACCEPTANCE_V18_2026-11-22.md) |
 | **V17** SSE 有界流观察与六轮 Docker 验收 | [ACCEPTANCE_V17_2026-11-22.md](ACCEPTANCE_V17_2026-11-22.md) |
 | **V16** SSR/跨域负向验收与 CI 结果 | [ACCEPTANCE_V16_2026-11-22.md](ACCEPTANCE_V16_2026-11-22.md) |
 | **V15** 当前提交的 CI、Docker 和双轮验收说明 | [ACCEPTANCE_V15_2026-11-22.md](ACCEPTANCE_V15_2026-11-22.md) |

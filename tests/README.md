@@ -27,3 +27,6 @@
 
 
 - **V17** `test_sse_sampling.py` 新增 11 项 HTTPX MockTransport 有界真实帧、重定向/超时/大小/注释判断；`test_sse_route.py` 新增 6 项浏览器 SSE 路由与限流/作用域测试；`test_docker_smoke_fixture.py` 添加一项 20 秒未关闭的真实 SSE fixture 检查。CI 由四轮拓展为 SPA/SSR/SSE 各两轮，检查最终结果和对方真实访问日志。本地 SSE 和合成 HTTP fixture 合计 15 项通过，完整精确提交以 Actions 结果为准。
+
+
+- **V18** `test_redirect_policy.py`（24 项纯规则参数化测试）与 `test_browser_auth_redirect.py`（8 项假 Playwright 路由测试）：合法 POST 302/303→GET、清除敏感 Header 和 Body、拒绝 307 POST 重放/HTTP 降级/跨域与不同端口、核对真实首跳状态；合成站 fixture 多一项 session cookie + 303 测试。GitHub Actions 将额外运行八轮真实 Chromium（SPA、SSR、SSE、Login 各两次）；精确结果见 V18 报告。

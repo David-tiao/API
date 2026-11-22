@@ -375,3 +375,10 @@ V16 的逐跳安全 HTTP 路由对长期未结束的 SSE 流可能等待到超�
 
 
 **V17 最终实测（2026-11-22）**：[GitHub Actions](https://github.com/David-tiao/API/actions/runs/45019475066) 绑定代码提交 `0bd65699`，全仓库 **169 passed**、Docker **28 秒/约 2.86 GB**、SPA/SSR/SSE 各两轮、**6/6 Schema/HAR/日志检查通过**、未授权合成服务端零禁止请求。首轮 SSE 因 `bytearray` 与 Playwright 类型不匹配失败，修复后由真实长连接与 Chromium 双轮闭环验证；不意味着完整 SSE 订阅语义或正式 S1～S5 隐藏基准已通过。见 [V17 验收](docs/ACCEPTANCE_V17_2026-11-22.md)。
+
+
+## 26. V18：登录后 POST 303 的安全兼容
+
+新增独立 `redirect_policy.py`：只在 ScopeGuard 明确允许、方法与协议转换安全时执行下一跳。模拟登录的 POST→303→GET 允许同主机同协议同端口转换并删除 POST Body/敏感 Header；GET 可升级到同 Host HTTPS，HTTPS 降级拒绝。禁止自动重发非幂等 POST 307/308，保留 V16 跨域安全和 V17 有界 SSE。首个真实 POST 303 与后续 GET 200 在日志中区分，不把原 POST 伪记为 200。
+
+GitHub Actions 增加自建 Cookie 登录模拟场景，SPA/SSR/SSE/Login 各两轮；只在 Login 场景用固定虚构测试凭据，确认私有 GET 真正返回 200，全部继续二次 Schema、HAR、日志与越界接收端核查。初始阶段本地规则/fixture 共 29 项通过；完整 CI 结果见 [V18 验收报告](docs/ACCEPTANCE_V18_2026-11-22.md)。保密历史清理与正式 S1～S5 隐藏站点仍是独立待验收事项。
