@@ -93,16 +93,20 @@ root = Path(sys.argv[1]).resolve()
 expected, scenario = sys.argv[2:]
 result = json.loads((root / 'result.json').read_text())
 rows = [json.loads(s) for s in (root / 'tool.log').read_text().splitlines() if s.strip()]
+assert all(r.get('phase') in {'static', 'dynamic', 'verify'} for r in rows), (
+    'Public log phase must be static, dynamic, or verify')
 assert any(r.get('note') == 'run_status:completed' for r in rows), 'Incomplete browser run'
 if scenario == 'login':
-    posts = [r for r in rows if r.get('phase') in {'dynamic', 'redirect'} and r.get('method') == 'POST']
+    posts = [r for r in rows if r.get('phase') == 'dynamic' and r.get('method') == 'POST']
     assert posts and all(r.get('url', '').endswith('/api/session') for r in posts), (
         'Unexpected state-changing POST in login scenario')
-    assert any(r.get('phase') == 'redirect' and r.get('method') == 'POST'
-               and r.get('status') == 303 and r.get('url', '').endswith('/api/session')
+    assert any(r.get('phase') == 'dynamic' and r.get('detail_phase') == 'redirect'
+               and r.get('method') == 'POST' and r.get('status') == 303
+               and r.get('url', '').endswith('/api/session')
                for r in rows), 'Actual login POST 303 was not logged truthfully'
-    assert any(r.get('phase') == 'redirect' and r.get('method') == 'GET'
-               and r.get('status') == 200 and r.get('url', '').endswith('/dashboard')
+    assert any(r.get('phase') == 'dynamic' and r.get('detail_phase') == 'redirect'
+               and r.get('method') == 'GET' and r.get('status') == 200
+               and r.get('url', '').endswith('/dashboard')
                for r in rows), 'Actual dashboard GET was not logged truthfully'
     assert 'fixture-pass' not in (root/'tool.log').read_text(), 'Synthetic password exposed in log'
 else:
