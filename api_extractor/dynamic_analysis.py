@@ -100,6 +100,24 @@ class DynamicAnalyzer:
             # Login is best-effort; no credential value is written to logs or evidence.
             return
 
+    async def _route_websocket(self, websocket_route) -> None:
+        """Gate both WS connection creation and its open lifespan."""
+        if not self.guard.is_allowed(websocket_route.url):
+            await websocket_route.close()
+            return
+        connection_id = id(websocket_route)
+        await self._limiter.before(connection_id)
+        try:
+            def release_on_close(_code=None, _reason=None):
+                self._limiter.after(connection_id)
+
+            websocket_route.on_close(release_on_close)
+            upstream = websocket_route.connect_to_server()
+            upstream.on_close(release_on_close)
+        except BaseException:
+            self._limiter.after(connection_id)
+            raise
+
     async def run(self, pages: list[str]) -> list[dict]:
         browser = None
         self.failure_reason = None
@@ -131,12 +149,7 @@ class DynamicAnalyzer:
                 await context.route("**/*", route_handler)
 
                 async def websocket_route_handler(websocket_route):
-                    if not self.guard.is_allowed(websocket_route.url):
-                        await websocket_route.close()
-                        return
-                    # A WebSocket handshake is a single connection; do not let it
-                    # starve behind the shared HTTP concurrency gate.
-                    websocket_route.connect_to_server()
+                    await self._route_websocket(websocket_route)
 
                 # Playwright 1.55 supports explicit WebSocket routing; fail closed if unavailable.
                 if not hasattr(context, "route_web_socket"):
