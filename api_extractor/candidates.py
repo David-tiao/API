@@ -51,6 +51,7 @@ def from_network_records(records: Iterable[Mapping[str, Any]]) -> list[dict[str,
             continue
         candidates.append({
             "method": row.get("method") or row.get("http_method") or "GET",
+            "http_method": row.get("http_method") or row.get("method") or "GET",
             "url": url,
             "source": "dynamic",
             "confidence": 0.96,
