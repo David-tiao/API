@@ -1,14 +1,14 @@
 # API Extractor V10：验收报告（2026-11-22）
 
-> 基准：GitHub [David-tiao/API](https://github.com/David-tiao/API)，验收源码 commit [`1774725441e`](https://github.com/David-tiao/API/commit/1774725441eab72082000eae7742c5d8d30320d4)。  
-> 依据：仓库内《RECRUIT-2026-考核细则.md》第 3 章、6.1 节，以及《RECRUIT-2026-公告.md》。  
+> 基准：GitHub [David-tiao/API](https://github.com/David-tiao/API)，验收源码 commit [旧提交链接已撤销]。  
+> 依据：仓库内《内部考核资料（已移除）》第 3 章、6.1 节，以及《内部考核资料（已移除）》。  
 > **结论：本次为部分验收，不通过最终交付验收。** 已复现一个 R5 作用域缺陷；静态证据与请求日志/可重放性存在重大缺口。不能根据离线局部测试宣称正式评测 PASS。
 
 ## 1. 验收范围与真实执行记录
 
 | 检查 | 具体执行、版本来源 | 结果 |
 |---|---|---|
-| 当前 GitHub | 读取 `main` 分支、文件树、Dockerfile、依赖、CLI、Schema、核心模块和现有测试文件 | commit `1774725441e`，完成只读检查 |
+| 当前 GitHub | 读取 `main` 分支、文件树、Dockerfile、依赖、CLI、Schema、核心模块和现有测试文件 | commit `旧提交标识已隐去`，完成只读检查 |
 | V10 纯候选映射测试 | 从 GitHub 读取 `candidates.py` 和 `test_candidates.py`，在隔离环境逐字重建；`git hash-object` 分别等于 GitHub 的 `91c2d817…` / `45b3a367…`，执行 `python -m pytest -q` | **8 / 8 PASS** |
 | R5 域名边界复现 | 用 GitHub `scope.py` 当前原文，SHA `6b823410…`，调用 `ScopeGuard` | **FAIL（已复现）** |
 | 既有本地源码回归 | 本地早期/组合副本 `api_quality_v9/`，`python -m pytest -q` | 30 / 30 PASS；**不是当前 GitHub V10 整仓库测试** |

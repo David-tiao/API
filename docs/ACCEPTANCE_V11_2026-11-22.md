@@ -1,6 +1,6 @@
 # API Extractor V11：整改验证状态（2026-11-22）
 
-> 代码基线：[`951a50afd34561f0a36f67afb630a656905eb7c6`](https://github.com/David-tiao/API/commit/951a50afd34561f0a36f67afb630a656905eb7c6)。  
+> 代码基线：[旧提交链接已撤销]。  
 > 与 [V10 验收报告](ACCEPTANCE_V10_2026-11-22.md) 对照；V10 结论是历史验收快照，不应覆盖或删除。  
 > 依照《RECRUIT-2026-考核细则》3.4、3.6 的 R4/R5/R6 硬性要求。
 
@@ -19,7 +19,7 @@ python -m pytest -q tests/test_scope.py tests/test_scope_psl.py tests/test_ws_ga
 python -m compileall -q api_extractor tests
 ```
 
-本轮在隔离 Python 工作副本运行上述相关的 **19 项测试通过**，并通过 Python 编译检查。用于范围检查的 V11 `scope.py` 与 GitHub Blob SHA 一致（`17d85cf98cc8bbea66d0af02d07b11e91f23f9ee`）；Playwright 门控在模拟 Route 上验证，**没有**真实 Chromium/WS 网络连接测试。不同提交、不同工作副本的测试数量不能累加为当前 GitHub 整仓库测试数。
+本轮在隔离 Python 工作副本运行上述相关的 **19 项测试通过**，并通过 Python 编译检查。用于范围检查的 V11 `scope.py` 与 GitHub Blob SHA 一致（`[旧提交标识已隐去]`）；Playwright 门控在模拟 Route 上验证，**没有**真实 Chromium/WS 网络连接测试。不同提交、不同工作副本的测试数量不能累加为当前 GitHub 整仓库测试数。
 
 已验证的具体样本：`app.example.co.za` 对 `unrelated.co.za` 拒绝；授权 `api.example.co.za` 可以通过；`foo.github.io` 不会误放行 `bar.github.io`；`127.0.0.1` 不会误放行另一个 IP；不存在 libpsl 时退化为严格同主机/后代策略。WS 连接关闭、上游关闭、建立异常均释放占用，并发为 1 时第二个连接等待；限流模拟在 20 RPS 配置下保留最小请求间隔。
 

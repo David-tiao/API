@@ -1,12 +1,14 @@
 # API Extractor 版本更迭记录（CHANGELOG）
 
+> 安全说明：为降低历史资料再次暴露的风险，早期提交的公开直达链接及标识已撤销。GitHub 上的旧对象和缓存**尚需独立历史清理**，此处不代表清理完成。历史重写后可在仓库提交历史中查阅新标识。
+
 > 项目：[David-tiao/API](https://github.com/David-tiao/API) · 选题 B：前端 API 提取工具  
 > 记录日期：2026-11-22（Asia/Singapore）  
 > **说明**：以下“V0～V14”是便于理解的**开发迭代阶段编号**，不是正式 Git Tag 或发布版本号。当前 `pyproject.toml` 中的软件版本仍为 `0.1.0`，不要把阶段编号当作发行版本。
 
 ## 验收快照：V10（2026-11-22，非功能版本）
 
-针对代码基线 `1774725441e`，新增 [V10 验收报告](ACCEPTANCE_V10_2026-11-22.md)。结果：V10 候选纯函数的 8 项当前 GitHub SHA 一致的测试通过；但 R5 注册域解析存在可复现越界风险，静态推断的 API 无法自然满足逐条请求日志与重放证明。完整 GitHub 当前全仓库测试、Docker 和隐藏站点未验证。**本次只更新文档，不修改业务代码；不视为 V11 版本发布。**
+针对代码基线 `旧提交标识已隐去`，新增 [V10 验收报告](ACCEPTANCE_V10_2026-11-22.md)。结果：V10 候选纯函数的 8 项当前 GitHub SHA 一致的测试通过；但 R5 注册域解析存在可复现越界风险，静态推断的 API 无法自然满足逐条请求日志与重放证明。完整 GitHub 当前全仓库测试、Docker 和隐藏站点未验证。**本次只更新文档，不修改业务代码；不视为 V11 版本发布。**
 
 ## 安全维护：内部资料不纳入公开仓库（2026-11-22）
 
@@ -28,7 +30,7 @@
 
 ## 最新迭代：V13 · 本地显式授权 GET 验证（2026-11-22）
 
-**代码提交**：[21ab27c35](https://github.com/David-tiao/API/commit/21ab27c35eae3b1e27b64d37719113a97391a275)  
+**代码提交**：[旧提交链接已撤销]  
 **文件**：新增 `api_extractor/verification.py`、`tests/test_safe_get_verification.py`、`tests/test_get_verifier_pipeline.py`；修改 `config.py`、`pipeline.py`、`normalization.py`、`evidence.py`。
 
 **问题**：V12 仅将浏览器确实触发的接口输出到 `result.json`，静态 JS/HTML 声明不具备真实请求证据，默认保存在 `static_candidates.json`。这样避免了虚假请求证据，但可能损失 T1 Recall。
@@ -39,11 +41,11 @@
 
 **安全与考核限制**：GET 并不天然保证服务器不修改数据，必须由操作者逐 URL 确认安全与授权。**官方 3.6 的允许适配字段不包括每站手动枚举接口路径**，因此这只是本地调试能力，默认字段缺失时不发送任何额外 GET，不能用于隐藏评测的站点特化，也无法保证实际 R6 重放率。CLI、结果 Schema、Dockerfile 均未改变。
 
-**补充维护**：提交 V13 代码时发现所用基树未包含 V12 后续文档提交，本次文档更新同时从原提交 `bddace5` 恢复 V12 文档，保留历史正文与文件链接，再追加 V13。本修正只处理文档一致性，不重写 Git 历史。
+**补充维护**：提交 V13 代码时发现所用基树未包含 V12 后续文档提交，本次文档更新同时从原提交 `旧提交标识已隐去` 恢复 V12 文档，保留历史正文与文件链接，再追加 V13。本修正只处理文档一致性，不重写 Git 历史。
 
 ## 最新迭代：V12 · R6 请求证据强度分级（2026-11-22）
 
-**代码提交**：[`3efe6a3e2`](https://github.com/David-tiao/API/commit/3efe6a3e2f28d4b4cebbc9f224cfca39dced3bf9)  
+**代码提交**：[旧提交链接已撤销]  
 **代码文件**：`api_extractor/evidence.py`、`api_extractor/output.py`、`api_extractor/pipeline.py`；新增 `tests/test_evidence_policy.py`、`tests/test_r6_pipeline.py`；调整 `tests/test_run_outcomes.py` 与 `tests/test_integration_local_http.py`。
 
 ### 要解决的具体问题
@@ -74,7 +76,7 @@ V11 之前，只有 JS/HTML 源码位置的静态候选，经过文件存在性�
 
 ## 最新迭代：V11 · R5 可注册域边界与 R4 WebSocket 全局限流（2026-11-22）
 
-**代码提交**：[951a50afd](https://github.com/David-tiao/API/commit/951a50afd34561f0a36f67afb630a656905eb7c6)  
+**代码提交**：[旧提交链接已撤销]  
 **修改文件**：`api_extractor/scope.py`、`api_extractor/dynamic_analysis.py`、新增 `tests/test_scope_psl.py` 与 `tests/test_ws_gate.py`。  
 **定位**：修复 V10 验收的两个硬性安全阻断项；不修改 CLI、Schema、运行时外部调用、历史文件。
 
@@ -116,7 +118,7 @@ python -m compileall -q api_extractor tests
 
 ## 最新迭代：V9 · 日志脱敏与本轮证据关联（2026-11-22）
 
-**代码提交**：[7208a2b6b](https://github.com/David-tiao/API/commit/7208a2b6be1391e373d4d1db9c93d51b85409e00)  
+**代码提交**：[旧提交链接已撤销]  
 **类型**：安全性、精确率与证据链可靠性；无 CLI、JSON Schema 或 Dockerfile 变动。  
 **修改文件**：`api_extractor/jsonl_logger.py`、`api_extractor/evidence.py`、`api_extractor/pipeline.py`、`tests/test_evidence_audit.py`、`tests/test_logger_redaction.py`、`tests/test_evidence_linking.py`。
 
@@ -147,7 +149,7 @@ python -m compileall -q api_extractor
 
 ## 最新迭代：V8 · 运行状态与部分结果可靠性（2026-11-22）
 
-**代码提交**：[3e3193822](https://github.com/David-tiao/API/commit/3e3193822ed8ae78ee353ece00becc133adb4659)  
+**代码提交**：[旧提交链接已撤销]  
 **改动类型**：可靠性修复（不增加服务、不改变 CLI / Schema / Dockerfile）  
 **涉及文件**：`api_extractor/dynamic_analysis.py`、`api_extractor/pipeline.py`、`tests/test_run_outcomes.py`
 
@@ -191,20 +193,20 @@ python -m compileall -q api_extractor
 
 | 阶段 | Git 提交（可点击） | 本次重点 | 变更类型 | 验证界限 |
 |---|---|---|---|---|
-| V0 | [`946c488`](https://github.com/David-tiao/API/commit/946c48868d52ad2db1a18427d68c891b09937585) | 初始化 API Extractor 工程 | 初始架构 | 仅有代码，未据此认定验收 |
-| V1 | [`ec1e6c0`](https://github.com/David-tiao/API/commit/ec1e6c081613d0d84ed5a63f8ed579e2013f2a8b) | 修正 WS 路由调用与请求稳定等待 | 兼容性与稳定性 | 真实浏览器仍需验证 |
-| V2 | [`130ca62`](https://github.com/David-tiao/API/commit/130ca62b7015cbb07f1aa7dbd8223bfea0ebfa8a) | CLI 异常、域名安全、证据和镜像契约 | P0/P1 修复 | 具备新增回归测试 |
-| V3 | [`980b434`](https://github.com/David-tiao/API/commit/980b434be225d8b1f308f1bd04adb27e4a70fee1) | Body 签名判断与双轮验收工具 | 功能、测试 | Docker 双轮脚本未在真实环境执行 |
-| V4 | [`33a7a0f`](https://github.com/David-tiao/API/commit/33a7a0f93382a2fc1a655ae8bc9974197b1dfb9d) | 限制浏览器临时目录写入范围 | 文件系统边界 | 需文件系统审计 |
-| V5 | [`043d2b2`](https://github.com/David-tiao/API/commit/043d2b2f230ae3ca286926c5da02e410672a9535) | S5 WebSocket/SSE 静态入口补全 | 协议识别 | 仅覆盖可静态定位的入口 |
-| V6 | [`ba07d6e`](https://github.com/David-tiao/API/commit/ba07d6e2636bd13c34e111cbdb86180a626df01a) | 引入 EvidenceAuditor 独立证据审计 | 架构演进 | 验证引用一致性，不是端点可重放 |
-| V7 | [`5659d284`](https://github.com/David-tiao/API/commit/5659d2846572f9e43ce353d25d5c267b16360139) | 正式记录架构、算法及迭代依据 | 工程文档 | 文字对照源码，不是运行测试 |
-| V8 | [`3e3193822`](https://github.com/David-tiao/API/commit/3e3193822ed8ae78ee353ece00becc133adb4659) | 失败状态显式报告、预算取消保留部分 API | 可靠性与 R2 适配 | 35 项离线测试；真实 Docker 待验收 |
-| V9 | [`7208a2b6b`](https://github.com/David-tiao/API/commit/7208a2b6be1391e373d4d1db9c93d51b85409e00) | URL 凭据脱敏、跨轮日志隔离、HAR 索引和状态匹配 | 安全与证据质量 | 本次 30 项针对性离线测试；未全仓库实测 |
+| V0 | [旧提交链接已撤销] | 初始化 API Extractor 工程 | 初始架构 | 仅有代码，未据此认定验收 |
+| V1 | [旧提交链接已撤销] | 修正 WS 路由调用与请求稳定等待 | 兼容性与稳定性 | 真实浏览器仍需验证 |
+| V2 | [旧提交链接已撤销] | CLI 异常、域名安全、证据和镜像契约 | P0/P1 修复 | 具备新增回归测试 |
+| V3 | [旧提交链接已撤销] | Body 签名判断与双轮验收工具 | 功能、测试 | Docker 双轮脚本未在真实环境执行 |
+| V4 | [旧提交链接已撤销] | 限制浏览器临时目录写入范围 | 文件系统边界 | 需文件系统审计 |
+| V5 | [旧提交链接已撤销] | S5 WebSocket/SSE 静态入口补全 | 协议识别 | 仅覆盖可静态定位的入口 |
+| V6 | [旧提交链接已撤销] | 引入 EvidenceAuditor 独立证据审计 | 架构演进 | 验证引用一致性，不是端点可重放 |
+| V7 | [旧提交链接已撤销] | 正式记录架构、算法及迭代依据 | 工程文档 | 文字对照源码，不是运行测试 |
+| V8 | [旧提交链接已撤销] | 失败状态显式报告、预算取消保留部分 API | 可靠性与 R2 适配 | 35 项离线测试；真实 Docker 待验收 |
+| V9 | [旧提交链接已撤销] | URL 凭据脱敏、跨轮日志隔离、HAR 索引和状态匹配 | 安全与证据质量 | 本次 30 项针对性离线测试；未全仓库实测 |
 | V10 | 本次提交（见 Git 文件历史） | 归档旧版文件、抽离候选纯函数、文档规范化 | 架构整理 | 8 项定向离线测试；未完整回归 |
-| V11 | [`951a50afd`](https://github.com/David-tiao/API/commit/951a50afd34561f0a36f67afb630a656905eb7c6) | PSL 域名边界与 WS 共享限流器 | R5/R4 安全修复 | 19 项定向测试；正式 Docker 未验收 |
-| V12 | [`3efe6a3e2`](https://github.com/David-tiao/API/commit/3efe6a3e2f28d4b4cebbc9f224cfca39dced3bf9) | request-backed 正式结果与静态待验证 sidecar | R6 证据分级 | 50 项相关离线测试，未做真实重放 |
-| V13 | [`21ab27c35`](https://github.com/David-tiao/API/commit/21ab27c35eae3b1e27b64d37719113a97391a275) | 本地显式 GET 授权与真实 HAR/日志核查 | 开发辅助/证据质量 | 87 项隔离离线测试；正式评测未验证 |
+| V11 | [旧提交链接已撤销] | PSL 域名边界与 WS 共享限流器 | R5/R4 安全修复 | 19 项定向测试；正式 Docker 未验收 |
+| V12 | [旧提交链接已撤销] | request-backed 正式结果与静态待验证 sidecar | R6 证据分级 | 50 项相关离线测试，未做真实重放 |
+| V13 | [旧提交链接已撤销] | 本地显式 GET 授权与真实 HAR/日志核查 | 开发辅助/证据质量 | 87 项隔离离线测试；正式评测未验证 |
 | V14 | 本次 Git 提交（见文件历史） | 合成真值、Recall/Precision、证据交叉核查与双轮稳定性 | 离线质量基准 | 开发副本 119 项通过，新增专项 32 项；Docker 未验收 |
 
 以上提交按**实现顺序**排列。GitHub 原始提交时间统一以 Git 元数据为准；2026-11-21 UTC 的提交对应新加坡时间 2026-11-21 至 22 日。

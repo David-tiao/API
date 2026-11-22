@@ -1,7 +1,7 @@
 # API Extractor：项目迭代、架构、数据流与底层算法
 
 > 仓库：[David-tiao/API](https://github.com/David-tiao/API) · 选题 B（前端 API 自动提取）  
-> 依据：仓库实际源码、`api_task.md`、`RECRUIT-2026-考核细则.md` 和 Git 提交历史。  
+> 依据：仓库实际源码、`api_task.md`、`内部考核资料（已移除）` 和 Git 提交历史。  
 > 验证原则：**代码审查/模拟测试通过，不代表真实 Docker 或 S1～S5 隐藏评测通过。**
 
 ## 1. 项目的本质
@@ -14,13 +14,13 @@
 
 | 版本节点 | Git 提交 | 为什么修改、有什么收获 |
 |---|---|---|
-| 项目原型 | `946c488` | 建立 Python + Node AST + Playwright + Docker 的基本流水线；模块齐全不代表验证充分 |
-| WebSocket 修复 | `ec1e6c0` | 修复 Playwright 1.55 WebSocket route 调用方式并等待运行时请求稳定；不能靠猜测版本 API |
-| 安全与运行契约 | `130ca62` | 错误返回码、域名默认边界、日志路径、失败请求过滤及 Docker 锁文件修复；避免假成功和越界 |
-| S4 与验收工具 | `980b434` | Body 中签名字段推断、排除 `design` 误报，本地 HTTP 集成测试及双轮验收脚本 |
-| R7 文件系统约束 | `33a7a0f` | 将浏览器 HOME、TMPDIR 与缓存指向 `/out`；配置引导不等于已完成文件系统审计 |
-| S5 静态入口 | `043d2b2` | 识别字面量 WebSocket 和 EventSource，补充 AST/Regex 结果合并与越界测试 |
-| 证据链审计 | `ba07d6e` | 新增 `evidence.py`，查验源文件、HAR 请求索引、方法、主机、路径及动态日志，拒绝无效证据 |
+| 项目原型 | `旧提交标识已隐去` | 建立 Python + Node AST + Playwright + Docker 的基本流水线；模块齐全不代表验证充分 |
+| WebSocket 修复 | `旧提交标识已隐去` | 修复 Playwright 1.55 WebSocket route 调用方式并等待运行时请求稳定；不能靠猜测版本 API |
+| 安全与运行契约 | `旧提交标识已隐去` | 错误返回码、域名默认边界、日志路径、失败请求过滤及 Docker 锁文件修复；避免假成功和越界 |
+| S4 与验收工具 | `旧提交标识已隐去` | Body 中签名字段推断、排除 `design` 误报，本地 HTTP 集成测试及双轮验收脚本 |
+| R7 文件系统约束 | `旧提交标识已隐去` | 将浏览器 HOME、TMPDIR 与缓存指向 `/out`；配置引导不等于已完成文件系统审计 |
+| S5 静态入口 | `旧提交标识已隐去` | 识别字面量 WebSocket 和 EventSource，补充 AST/Regex 结果合并与越界测试 |
+| 证据链审计 | `旧提交标识已隐去` | 新增 `evidence.py`，查验源文件、HAR 请求索引、方法、主机、路径及动态日志，拒绝无效证据 |
 
 问题明细与工程经验持续维护在 [FIXES_AND_LESSONS.md](FIXES_AND_LESSONS.md)。这些提交均为开发记录，不构成评分保证。
 

@@ -1,6 +1,6 @@
 # API Extractor 修复记录与工程经验
 
-> 检查基础：GitHub `David-tiao/API` 的 `main` 分支（修复前 commit `ec1e6c0816`）。
+> 检查基础：GitHub `David-tiao/API` 的 `main` 分支（修复前 commit `旧提交标识已隐去`）。
 > 本文记录问题、具体修复、可复现检查和仍未通过的验收项。禁止把静态审查当作隐藏站点的评分结果。
 
 ## 1. 范围与原则
