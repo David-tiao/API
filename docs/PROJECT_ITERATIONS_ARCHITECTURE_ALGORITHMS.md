@@ -197,6 +197,10 @@ V14 新增 `offline_benchmark.py`，**不接入扫描器生产流水线**。开�
 
 严格不生成官方 100 分：自动化只计算 Recall(40)+Precision(20) 的 `objective_points_60`；语义(20)、证据正式评分(10)、工程质量(10) 标记未评分。集合 Jaccard、语义 SHA-256 指纹为新增诊断指标，不冒充组织方计分公式。详情见 [OFFLINE_BENCHMARK.md](OFFLINE_BENCHMARK.md)。
 
+## 5.8 V16：安全验收中的独立负向观测
+
+原来的 Docker CI 只证明允许的 SPA API 可以请求。V16 在 internal-only 网络内启动 `fixture`（唯一配置允许 Host）与 `offscope`（模拟禁止 Host），页面尝试跨域图片和 302 重定向。除了 `ScopeGuard` 的测试，还从**另一个服务端的访问日志**独立确认没有实际请求。SSR 的未知 POST 表单保持为静态候选，不能变成实际请求；已被浏览器真正发出的 GET 则通过 HAR+JSONL 审计进入正式清单。两种场景各运行两次，独立二次 Schema 检验。详见 [V16 验收报告](ACCEPTANCE_V16_2026-11-22.md)。
+
 ## 6. 当前验证等级与未解决问题
 
 本轮不扫描真实网站、不运行 Docker/Chromium。隔离 Python 工作副本的离线测试和本地模拟 HTTP 夹具 **共 35 项通过**，Python `compileall` 及 Bash 语法检查通过。测试新增了证据文件缺失、路径穿越、越界 symlink、HAR 错索引、错 Method、日志缺失及 WS/GQL 映射等场景。

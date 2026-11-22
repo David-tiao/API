@@ -21,3 +21,6 @@
 
 
 **V15 真实 CI 记录**：首次 GitHub Actions commit `466dde4` 全仓库 **137 passed in 4.03s**（含新夹具测试），Docker 双轮各 1 条合成 API；后续每次 main 提交都将触发测试，最新版以其 Actions 运行状态为准。
+
+
+- **V16** 新增 `test_crawler_redirect_scope.py` 四项 HTTPX 重定向安全回归；`test_docker_smoke_fixture.py` 扩展到 SPA、SSR、302 共 3 项。真实 Docker 四轮安全验收见 V16 文档及 GitHub Actions 日志。

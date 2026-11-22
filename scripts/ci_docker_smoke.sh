@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# CI-only: two real Chromium runs against an isolated synthetic HTTP target.
-# Never tests external sites, prunes Docker globally or touches other containers.
+# CI-only: four real Chromium runs across SPA and SSR fixtures, no external site.
+# A separate synthetic out-of-scope container confirms denied requests have no side effect.
 set -Eeuo pipefail
 umask 077
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
@@ -8,55 +8,66 @@ IMAGE="${1:-api-extractor-ci:latest}"
 FIXTURE_PY="$ROOT/tests/fixtures/docker_smoke_site.py"
 [[ -f "$FIXTURE_PY" ]] || { echo 'Fixture script missing' >&2; exit 1; }
 command -v docker >/dev/null || { echo 'Docker command not found' >&2; exit 1; }
-command -v python3 >/dev/null || { echo 'Python3 required for validation' >&2; exit 1; }
+command -v python3 >/dev/null || { echo 'Python3 required for verification' >&2; exit 1; }
+command -v timeout >/dev/null || { echo 'timeout required' >&2; exit 1; }
 
 tmp="$(mktemp -d "${TMPDIR:-/tmp}/api-extractor-ci.XXXXXXXX")"
 network="api-ci-$(date +%s)-$$"
 fixture="api-ci-site-$$"
+offscope="api-ci-offscope-$$"
 cleanup() {
-  docker rm -f "$fixture" >/dev/null 2>&1 || :
+  docker rm -f "$fixture" "$offscope" >/dev/null 2>&1 || :
   docker network rm "$network" >/dev/null 2>&1 || :
   rm -rf -- "$tmp"
 }
 trap cleanup EXIT
 
 docker network create --internal "$network" >/dev/null
-# Reuse the built image, avoid downloading any unrelated fixture image.
-docker run -d --pull=never --name "$fixture" --network "$network" \
-  --network-alias fixture --read-only \
-  --entrypoint python -v "$FIXTURE_PY:/site.py:ro" "$IMAGE" /site.py >/dev/null
+# Same synthetic code, different network alias: only 'fixture' is authorized.
+for name in "$fixture" "$offscope"; do
+  if [[ "$name" == "$fixture" ]]; then alias=fixture; else alias=offscope; fi
+  docker run -d --pull=never --name "$name" --network "$network" \
+    --network-alias "$alias" --read-only \
+    --entrypoint python -v "$FIXTURE_PY:/site.py:ro" "$IMAGE" /site.py >/dev/null
+done
 
-# Health check runs inside this fixture container; no Internet needed.
-ready=0
-for _ in $(seq 1 30); do
-  if docker exec "$fixture" python -c '
+for name in "$fixture" "$offscope"; do
+  ready=0
+  for _ in $(seq 1 30); do
+    if docker exec "$name" python -c '
 import urllib.request
 opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 assert opener.open("http://127.0.0.1:8765/", timeout=2).status == 200
 ' >/dev/null 2>&1; then ready=1; break; fi
-  sleep 1
+    sleep 1
+  done
+  [[ "$ready" == 1 ]] || { echo "Isolated fixture unavailable: $name" >&2; docker logs "$name"; exit 1; }
 done
-[[ "$ready" == 1 ]] || { echo 'Isolated fixture did not become ready' >&2; docker logs "$fixture"; exit 1; }
 
 printf '%s\n' '{"site_id":"ci-synthetic","allowed_hosts":["fixture"],"credentials":[],"headers":{}}' > "$tmp/site.json"
-for n in 1 2; do
-  out="$tmp/run-$n"
-  mkdir -m 0777 "$out"
-  # An internal-only Docker network blocks all traffic outside the fixture network.
-  # Read-only container root also catches common non-/out write attempts.
-  timeout --signal=TERM --kill-after=10s 110s docker run --rm --pull=never \
-    --name "api-ci-run-$n-$$" --network "$network" --user "$(id -u):$(id -g)" \
-    --read-only --shm-size=512m \
-    -e HOME=/out/home -e TMPDIR=/out/tmp -e XDG_CACHE_HOME=/out/cache \
-    -v "$tmp/site.json:/cfg/site.json:ro" -v "$out:/out" \
-    "$IMAGE" --target http://fixture:8765/ --config /cfg/site.json \
-    --out /out/result.json --budget 90 \
-    > "$out/stdout.log" 2> "$out/stderr.log" || {
-    cat "$out/stderr.log" >&2; cat "$out/stdout.log" >&2; exit 1;
-  }
-  # Independent validation inside the built image, not just output.py's own check.
-  docker run --rm --pull=never --network none --read-only \
-    -v "$out:/out:ro" --entrypoint python "$IMAGE" -c '
+for scenario in spa ssr; do
+  case "$scenario" in
+    spa) TARGET='http://fixture:8765/'; EXPECTED='/api/items' ;;
+    ssr) TARGET='http://fixture:8765/ssr'; EXPECTED='/api/ssr-items' ;;
+  esac
+  for n in 1 2; do
+    out="$tmp/$scenario-run-$n"
+    mkdir -m 0777 "$out"
+    # Same CLI contract as a normal benchmark run, with /out as its only write mount.
+    timeout --signal=TERM --kill-after=10s 110s docker run --rm --pull=never \
+      --name "api-ci-run-$scenario-$n-$$" --network "$network" \
+      --user "$(id -u):$(id -g)" --read-only --shm-size=512m \
+      -e HOME=/out/home -e TMPDIR=/out/tmp -e XDG_CACHE_HOME=/out/cache \
+      -v "$tmp/site.json:/cfg/site.json:ro" -v "$out:/out" \
+      "$IMAGE" --target "$TARGET" --config /cfg/site.json \
+      --out /out/result.json --budget 90 \
+      > "$out/stdout.log" 2> "$out/stderr.log" || {
+      cat "$out/stderr.log" >&2; cat "$out/stdout.log" >&2; exit 1;
+    }
+
+    # Use a second container to validate with the *actual* published JSON Schema.
+    docker run --rm --pull=never --network none --read-only \
+      -v "$out:/out:ro" --entrypoint python "$IMAGE" -c '
 import json
 from pathlib import Path
 from jsonschema import Draft202012Validator
@@ -67,44 +78,68 @@ errors=list(Draft202012Validator(schema).iter_errors(result))
 assert not errors, "; ".join(error.message for error in errors[:3])
 print("Independent JSON Schema validation PASS")
 '
-  python3 - "$out" <<'PY'
+    python3 - "$out" "$EXPECTED" "$scenario" <<'PY'
 import json
 from pathlib import Path
 import sys
-p = Path(sys.argv[1]); result = json.loads((p/'result.json').read_text())
-assert result['endpoints'], 'No observed endpoints: browser may not have run'
-eps=[e for e in result['endpoints'] if e['method']=='GET' and e['path']=='/api/items']
-assert eps, 'Missing real network-observed GET /api/items'
-log=[json.loads(s) for s in (p/'tool.log').read_text().splitlines() if s.strip()]
-assert any(row.get('method')=='GET' and row.get('url','').endswith('/api/items')
-           and row.get('status')==200 for row in log), 'No actual API request in tool.log'
-assert any(row.get('note')=='run_status:completed' for row in log), 'Run not marked completed'
-for ep in eps:
-    evidence=[ev for ev in ep['evidence'] if ev.get('type')=='har']
-    assert evidence, 'A verified endpoint must have HAR evidence'
-    for ev in evidence:
-        rel=Path(ev['file']); assert not rel.is_absolute() and '..' not in rel.parts
-        f=(p/rel).resolve(); assert f.is_relative_to(p.resolve()) and f.is_file()
-        entries=json.loads(f.read_text())['log']['entries']
-        entry = entries[ev['request_index']]
-        req=entry['request']
-        assert req['method']=='GET' and req['url'].endswith('/api/items')
-        assert entry['response']['status'] == 200, 'HAR reports non-success status'
-        assert any(row.get('request_index') == ev['request_index']
-                   and row.get('method') == 'GET'
-                   and row.get('url') == req['url']
-                   and row.get('status') == entry['response']['status']
-                   for row in log), 'HAR request does not correlate with a real log entry'
-print('Synthetic run passed:', len(result['endpoints']), 'endpoints')
+
+root = Path(sys.argv[1]).resolve()
+expected, scenario = sys.argv[2:]
+result = json.loads((root / 'result.json').read_text())
+rows = [json.loads(s) for s in (root / 'tool.log').read_text().splitlines() if s.strip()]
+assert any(r.get('note') == 'run_status:completed' for r in rows), 'Incomplete browser run'
+assert not any(r.get('method') == 'POST' for r in rows), 'Unknown POST was invoked!'
+eps = result['endpoints']
+assert len(eps) == 1, f'Expected exactly one real API in {scenario}, got {eps}'
+ep = eps[0]
+assert (ep['method'], ep['host'], ep['path']) == ('GET', 'fixture', expected), ep
+assert ep['evidence'], 'API has no evidence'
+hars = [ev for ev in ep['evidence'] if ev['type'] == 'har']
+assert hars, 'Static-only API incorrectly promoted to official result'
+for ev in hars:
+    rel = Path(ev['file'])
+    assert not rel.is_absolute() and '..' not in rel.parts
+    har_path = (root / rel).resolve()
+    assert har_path.is_relative_to(root) and har_path.is_file()
+    entries = json.loads(har_path.read_text())['log']['entries']
+    idx = ev['request_index']
+    assert isinstance(idx, int) and 0 <= idx < len(entries)
+    entry = entries[idx]
+    req = entry['request']
+    assert req['method'] == 'GET' and req['url'].endswith(expected)
+    assert entry['response']['status'] == 200
+    assert any(r.get('phase') == 'dynamic' and r.get('request_index') == idx
+               and r.get('method') == req['method'] and r.get('url') == req['url']
+               and r.get('status') == entry['response']['status'] for r in rows), (
+               'HAR request does not match a successful actual log request')
+review = json.loads((root / 'static_candidates.json').read_text())
+if scenario == 'ssr':
+    assert any((r['method'], r['path']) == ('POST', '/api/submit')
+               for r in review['candidates']), 'SSR form not preserved as unverified hint'
+    assert not any((r['method'], r['path']) == ('POST', '/api/submit')
+                   for r in eps), 'Unknown SSR form POST was promoted'
+print(f'Synthetic {scenario} run passed: {len(eps)} observed API, SSR form safe')
+PY
+  done
+  python3 - "$tmp" "$scenario" <<'PY'
+import json
+from pathlib import Path
+import sys
+base, scenario = Path(sys.argv[1]), sys.argv[2]
+runs = []
+for n in (1, 2):
+    data = json.loads((base/f'{scenario}-run-{n}'/'result.json').read_text())
+    runs.append({(e['method'],e['host'],e['path']) for e in data['endpoints']})
+assert runs[0] == runs[1], f'{scenario} endpoint drift: {runs}'
+print(f'{scenario} two-run stability PASS. Endpoints: {len(runs[0])}')
 PY
 done
-python3 - "$tmp" <<'PY'
-import json,sys
-from pathlib import Path
-root=Path(sys.argv[1]); rows=[]
-for n in (1,2):
-    d=json.loads((root/f'run-{n}'/'result.json').read_text())
-    rows.append({(e['method'],e['host'],e['path']) for e in d['endpoints']})
-assert rows[0] == rows[1], f'Two-run endpoint sets drifted: {rows}'
-print('Two-run Docker smoke PASS. Stable endpoint count:',len(rows[0]))
-PY
+
+# If scope filtering fails, the browser can reach this second container.
+# Check its real access log, not merely a string in the scanner's own JSONL.
+if docker logs "$offscope" 2>&1 | grep -E 'GET /forbidden-(resource|redirect)'; then
+  echo 'SCOPE VIOLATION: out-of-scope synthetic server received a request' >&2
+  exit 1
+fi
+echo 'Out-of-scope container saw no forbidden requests: PASS'
+echo 'V16 isolated Docker acceptance PASS: SPA and SSR, 2 independent runs each'

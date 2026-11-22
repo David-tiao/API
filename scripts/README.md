@@ -21,3 +21,6 @@ V10 没有移动现有 Shell 脚本，避免历史 Ubuntu 命令失效。
 
 
 **V15 CI 加固**：脚本后续增加独立 `jsonschema.Draft202012Validator` 校验，以及 HAR/日志之间索引、Method、URL、HTTP 状态码的核对；这类代码加固仍需在实际 GitHub Runner 上重新执行通过后才可标记通过。
+
+
+**V16** `ci_docker_smoke.sh` 扩展为 SPA、SSR 各两次真实容器运行；隔离网络额外启动未授权合成站点并检查其接收日志，避免单纯信任扫描器自报的 R5 阻断行为。只清理自己创建的网络与容器。

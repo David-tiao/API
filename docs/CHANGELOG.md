@@ -4,7 +4,7 @@
 
 > 项目：[David-tiao/API](https://github.com/David-tiao/API) · 选题 B：前端 API 提取工具  
 > 记录日期：2026-11-22（Asia/Singapore）  
-> **说明**：以下“V0～V15”是便于理解的**开发迭代阶段编号**，不是正式 Git Tag 或发布版本号。当前 `pyproject.toml` 中的软件版本仍为 `0.1.0`，不要把阶段编号当作发行版本。
+> **说明**：以下“V0～V16”是便于理解的**开发迭代阶段编号**，不是正式 Git Tag 或发布版本号。当前 `pyproject.toml` 中的软件版本仍为 `0.1.0`，不要把阶段编号当作发行版本。
 
 ## 验收快照：V10（2026-11-22，非功能版本）
 
@@ -23,6 +23,20 @@
 代码基线 `466dde4019d20da5a6deff52f4dc227b11f68ec7` 首轮 GitHub Actions [运行记录](https://github.com/David-tiao/API/actions/runs/45011683183) 已完成，两个 Job 均成功：**全仓库 pytest 137 项通过**；Docker 原构建 **28 秒**、镜像大小 **2,864,215,392 字节**；internal Docker 网络中的真实 Chromium 两轮分别发现 **1 条**合成 GET API，集合一致。最新增量加强独立 JSON Schema/HAR/日志对齐及所有 main 提交的 CI 触发，等新流水线结束再认定最新版通过。
 
 这只是自建模拟站点基础验收，非 S1～S5 官方隐藏站点、真实网络越界审计或历史保密清理的最终验收。详见 [V15 验收记录](ACCEPTANCE_V15_2026-11-22.md)。
+
+## V16 · SSR 表单与跨域重定向的真实负向验收（2026-11-22）
+
+**改动**：扩展 `tests/fixtures/docker_smoke_site.py`、`tests/test_docker_smoke_fixture.py`、`scripts/ci_docker_smoke.sh`；新增 `tests/test_crawler_redirect_scope.py`。本轮**不修改生产扫描器、Dockerfile、CLI 或结果 Schema**。
+
+**动机**：V15 已在 GitHub 精确提交中通过 137 项离线测试、真实 Docker 构建和两轮 SPA 合成站点验收，但只能证明允许的 GET 正常工作，不能证明未授权跨域请求真的被阻断，也不能证明 HTML 表单不被擅自提交。
+
+**新增**：同一个 internal-only Docker 网络部署已授权的 `fixture` 和未授权的 `offscope` 两个合成服务端。浏览器分别访问 SPA `/`、SSR `/ssr`；后者包含一个未知 `POST /api/submit` 表单、一个已观察的 `GET /api/ssr-items`、一张跨域图片与一个指向异域的 302 重定向。每种场景**独立运行两次**；要求正式结果只输出观察到的 GET、未提交 POST、静态表单只保存在待验证旁路文件。跨域是否成功被阻止由 **offscope 实际接收端访问日志**判断，而不是仅听信扫描器的阻断说明。
+
+**证据质量**：四次运行都由独立容器验证正式 JSON Schema；对每条 HAR 核对本轮 JSONL 的请求方法、URL、HTTP 状态与索引，并比较同场景双轮集合。另补四项 HTTPX MockTransport 重定向安全测试。
+
+**真实执行界限**：本地新 SSR/SPA/302 夹具 **3 项测试通过**，Bash 和 Python 语法检查通过；完整仓库 pytest、四轮 Docker、异域接收端日志检查以本提交 GitHub Actions 真实结果为准，**未经执行不得宣称通过**。R5 真实代理/DNS、S1～S5 隐藏站点和公开 Git 历史保密仍不属于此模拟验收。
+
+详见 [V16 验收](ACCEPTANCE_V16_2026-11-22.md)。
 
 ## 最新迭代：V15 · 同一提交的自动回归与隔离 Docker 双轮验收（2026-11-22）
 
@@ -236,6 +250,7 @@ python -m compileall -q api_extractor
 | V13 | [旧提交链接已撤销] | 本地显式 GET 授权与真实 HAR/日志核查 | 开发辅助/证据质量 | 87 项隔离离线测试；正式评测未验证 |
 | V14 | 本次 Git 提交（见文件历史） | 合成真值、Recall/Precision、证据交叉核查与双轮稳定性 | 离线质量基准 | 开发副本 119 项通过，新增专项 32 项；Docker 未验收 |
 | V15 | 本次 Git 提交（见 main 历史） | 全仓库 CI、Docker 合成站点双轮运行与证据核验 | 交付质量门禁 | 本地夹具测试 1 项；GitHub Actions 初次执行待核对 |
+| V16 | 本次 main 提交 | SSR+SPA 四轮合成 Docker 安全验收、异域接收方日志 | R5/S2/R6 | 本地 3 项新夹具测试通过；CI 待运行 |
 
 以上提交按**实现顺序**排列。GitHub 原始提交时间统一以 Git 元数据为准；2026-11-21 UTC 的提交对应新加坡时间 2026-11-21 至 22 日。
 

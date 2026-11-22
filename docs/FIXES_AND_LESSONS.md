@@ -200,3 +200,10 @@ docker run --rm --pull=never api-extractor:0.1.0 --help
 ### V15 实际验证补充
 
 首次 GitHub Actions Run #1（提交 `466dde4`）完成：当前精确 GitHub checkout 中的 137 项测试全部通过，Docker 镜像构建 28 秒，大小 2,864,215,392 字节；自造 internal HTTP 站点的真实 Chromium 双轮各发现 1 条 API、结果集合一致。证明 CI 链路可在干净 GitHub Runner 上执行。之后新增独立 Schema 校验和 HAR/log 请求关联更严格的检查，尚需在新提交中复跑。不能由单个合成 API 推断全部复杂协议、真实权限边界或正式重放率。
+
+
+## 19. V16：安全阻断应由请求接收方独立核查
+
+V15 只有允许 GET 的正向测试，并没有真实证明跨域页面资源、302 跳转不会抵达未授权 Host。V16 增加第二个隔离的 `offscope` 容器：SSR 页面显式尝试载入它的图片并设置异域 Location，真实 Docker 脚本最后检查**服务端日志**没有两种禁止路径。SSR 的未知 POST 表单不得被自动提交，只保留静态待验证记录，避免通过假请求制造证据。
+
+新增 MockTransport 测试覆盖外域跳转、合法相对跳转、带凭据 URL 和有界循环；本地 Fixture 3 项已通过。主流程与真实 browser 的最终结果以 Actions 日志为准，若负向用例失败，应该修复作用域执行路径而不是放宽断言。真实 DNS 与代理行为、S1～S5 仍待更充分验证。
