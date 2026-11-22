@@ -207,3 +207,8 @@ docker run --rm --pull=never api-extractor:0.1.0 --help
 V15 只有允许 GET 的正向测试，并没有真实证明跨域页面资源、302 跳转不会抵达未授权 Host。V16 增加第二个隔离的 `offscope` 容器：SSR 页面显式尝试载入它的图片并设置异域 Location，真实 Docker 脚本最后检查**服务端日志**没有两种禁止路径。SSR 的未知 POST 表单不得被自动提交，只保留静态待验证记录，避免通过假请求制造证据。
 
 新增 MockTransport 测试覆盖外域跳转、合法相对跳转、带凭据 URL 和有界循环；本地 Fixture 3 项已通过。主流程与真实 browser 的最终结果以 Actions 日志为准，若负向用例失败，应该修复作用域执行路径而不是放宽断言。真实 DNS 与代理行为、S1～S5 仍待更充分验证。
+
+
+### V16 真实问题：Playwright 自动重定向绕过 URL scope
+
+首次 V16 Docker 负向测试让 `offscope` 接收端记录到 **2 次 /forbidden-redirect**，而正向 SPA/SSR 测试均成功。证明 `route.continue_()` 只守住初始请求，不能依赖浏览器自动重定向继续守住新 Host。生产修复采用 `route.fetch(max_redirects=0)` 后手动逐跳校验、逐跳计 RPS、限制跳数，不确定方法和跨协议语义直接拒绝。真实 Docker 将继续检查接收端服务日志，不能只信工具自己的日志。保守拒绝可能影响 SSE/登录流程，须后续专项复验。

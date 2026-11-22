@@ -6,7 +6,7 @@ import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import urljoin, urlsplit
 
 from playwright.async_api import async_playwright
 
@@ -118,6 +118,79 @@ class DynamicAnalyzer:
             self._limiter.after(connection_id)
             raise
 
+    async def _route_http(self, route) -> None:
+        """Enforce scope on each redirect before any next-hop network request.
+
+        Playwright route.continue_() can follow redirected URLs without calling
+        context.route() again. Fetch with max_redirects=0 and explicitly check
+        each Location before requesting another URL. This is fail-closed.
+        """
+        request = route.request
+        if not self.guard.is_allowed(request.url):
+            await route.abort("blockedbyclient")
+            return
+
+        request_id = id(request)
+        acquired = False
+        try:
+            await self._limiter.before(request_id)
+            acquired = True
+            current = request.url
+            original_scheme = urlsplit(current).scheme
+            method = request.method.upper()
+            for hop in range(7):
+                if hop:
+                    # This request already occupies a concurrency slot. Charge
+                    # each follow-up HTTP request to the shared RPS gate only.
+                    await self.gate.throttle()
+                options = {"max_redirects": 0, "timeout": 15000}
+                if hop:
+                    options["url"] = current
+                response = await route.fetch(**options)
+                location = response.headers.get("location")
+                if response.status not in {301, 302, 303, 307, 308} or not location:
+                    await route.fulfill(response=response)
+                    return
+
+                next_url = urljoin(current, location)
+                if not self.guard.is_allowed(next_url):
+                    self.logger.write("-", next_url, 0, "verify",
+                                      note="browser_redirect_blocked_by_scope")
+                    self._limiter.after(request_id)
+                    await route.abort("blockedbyclient")
+                    return
+
+                # This bounded adapter cannot preserve arbitrary method/body
+                # changes or cross-protocol redirects. Refuse them instead of
+                # risking an unguarded network request or POST replay.
+                if method not in {"GET", "HEAD"} or urlsplit(next_url).scheme != original_scheme:
+                    self.logger.write("-", next_url, 0, "verify",
+                                      note="browser_redirect_unsafe_transition")
+                    self._limiter.after(request_id)
+                    await route.abort("blockedbyclient")
+                    return
+                current = next_url
+
+            self.logger.write("-", current, 0, "verify",
+                              note="browser_redirect_limit")
+            self._limiter.after(request_id)
+            await route.abort("blockedbyclient")
+        except asyncio.CancelledError:
+            if acquired:
+                self._limiter.after(request_id)
+            try:
+                await route.abort()
+            except Exception:
+                pass
+            raise
+        except Exception:
+            if acquired:
+                self._limiter.after(request_id)
+            try:
+                await route.abort()
+            except Exception:
+                pass
+
     async def run(self, pages: list[str]) -> list[dict]:
         browser = None
         self.failure_reason = None
@@ -131,20 +204,7 @@ class DynamicAnalyzer:
                 context = await browser.new_context(ignore_https_errors=False, service_workers="block", extra_http_headers=self.config.headers)
 
                 async def route_handler(route):
-                    request = route.request
-                    if not self.guard.is_allowed(request.url):
-                        await route.abort()
-                        return
-                    request_id = id(request)
-                    try:
-                        await self._limiter.before(request_id)
-                        await route.continue_()
-                    except Exception:
-                        self._limiter.after(request_id)
-                        try:
-                            await route.abort()
-                        except Exception:
-                            pass
+                    await self._route_http(route)
 
                 await context.route("**/*", route_handler)
 

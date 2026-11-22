@@ -15,15 +15,19 @@ class RequestGate:
         self._interval = 1.0 / max(max_rps, 0.1)
         self._last_request = 0.0
 
+    async def throttle(self) -> None:
+        """Charge a redirect hop without acquiring a second concurrency slot."""
+        async with self._rate_lock:
+            now = time.monotonic()
+            wait_for = self._interval - (now - self._last_request)
+            if wait_for > 0:
+                await asyncio.sleep(wait_for)
+            self._last_request = time.monotonic()
+
     async def acquire(self) -> None:
         await self._semaphore.acquire()
         try:
-            async with self._rate_lock:
-                now = time.monotonic()
-                wait_for = self._interval - (now - self._last_request)
-                if wait_for > 0:
-                    await asyncio.sleep(wait_for)
-                self._last_request = time.monotonic()
+            await self.throttle()
         except BaseException:
             self._semaphore.release()
             raise

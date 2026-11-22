@@ -347,3 +347,12 @@ python -m compileall -q api_extractor
 - 真实代理下的并发/RPS 和运行时文件系统访问审计。
 
 **最终结论**：代码拥有针对已知缺陷的修复与回归测试；不能据此宣称选题 B 已通过正式综合考核。
+
+
+## V16 安全修补记录：浏览器 302 实际越界（2026-11-22）
+
+V16 首次 GitHub Actions [运行记录](https://github.com/David-tiao/API/actions/runs/45017092637) 中，**143 项 pytest 成功**、Docker 33 秒构建（2,864,047,980 字节），四次 SPA/SSR 浏览器运行均有正确的 JSON/HAR/日志，但独立未授权容器确实收到 **两次 GET /forbidden-redirect**，因此总体安全验收 **FAIL**。
+
+根因：`Playwright route.continue_()` 对重定向链的下一跳不保证重新调用 ScopeGuard。修补：普通 HTTP 路由统一用 `route.fetch(max_redirects=0)`，逐跳解析 Location 并在请求发生前重新执行 ScopeGuard，逐跳消耗 RequestGate RPS 预算，最多七跳。不在授权范围的目标立即拒绝；跨协议或未知非 GET/HEAD 重定向保守拒绝。保留真实容器接收端的负向断言，不通过放松测试掩盖漏洞。
+
+**兼容代价**：路由 fetch 需要缓冲完整响应，可能影响 SSE 长连接或巨大资源；合法的 POST 登录跳转、HTTP 到 HTTPS 升级暂时采用 fail-closed 策略，后续需要在保持 R5 的前提下专项兼容性改进。新增七项模拟路由测试；修补的完整 GitHub CI 结果以新提交实际运行状态为准。
