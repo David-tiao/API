@@ -148,3 +148,18 @@ def audit_endpoints(
 ) -> tuple[list[dict], int, int]:
     """Keep evidence backed by source files or this run's observed requests."""
     return EvidenceAuditor(out_dir, log_start_offset).audit(endpoints)
+
+def split_by_request_proof(endpoints: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Partition *already audited* endpoints by real HTTP/WS request evidence.
+
+    JS/HTML excerpts prove declarations, not that the browser requested an API.
+    Call only after EvidenceAuditor validated HAR against the current run log.
+    """
+    confirmed, static_only = [], []
+    for endpoint in endpoints:
+        if any(isinstance(ev, dict) and ev.get("type") == "har"
+               for ev in endpoint.get("evidence", [])):
+            confirmed.append(endpoint)
+        else:
+            static_only.append(endpoint)
+    return confirmed, static_only

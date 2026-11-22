@@ -42,7 +42,7 @@ def run_with_browser(tmp_path, monkeypatch, browser):
     return code, json.loads(out.read_text()), (tmp_path / "tool.log").read_text()
 
 
-def test_dynamic_failure_keeps_verified_static_result(tmp_path, monkeypatch):
+def test_dynamic_failure_preserves_unverified_static_hint(tmp_path, monkeypatch):
     async def failed_browser(self, pages):
         self.failure_reason = "BrowserUnavailable"
         self.logger.write("-", self.target, 0, "dynamic", note="browser_phase_error:BrowserUnavailable")
@@ -50,23 +50,26 @@ def test_dynamic_failure_keeps_verified_static_result(tmp_path, monkeypatch):
 
     code, data, log = run_with_browser(tmp_path, monkeypatch, failed_browser)
     assert code == 0  # Required by R2 when a valid partial result is available.
-    assert [(e["method"], e["path"]) for e in data["endpoints"]] == [("GET", "/api/items")]
+    assert data["endpoints"] == []
+    review = json.loads((tmp_path / "static_candidates.json").read_text())
+    assert [(e["method"], e["path"]) for e in review["candidates"]] == [("GET", "/api/items")]
     assert "dynamic_phase_failed:BrowserUnavailable" in log
     assert "run_status:partial_browser_failure" in log
 
 
-def test_budget_timeout_keeps_static_evidence(tmp_path, monkeypatch):
+def test_budget_timeout_keeps_static_hint_out_of_result(tmp_path, monkeypatch):
     async def slow_browser(self, pages):
         await asyncio.sleep(60)
 
     code, data, log = run_with_browser(tmp_path, monkeypatch, slow_browser)
     assert code == 0
-    assert [(e["method"], e["path"]) for e in data["endpoints"]] == [("GET", "/api/items")]
+    assert data["endpoints"] == []
+    assert json.loads((tmp_path / "static_candidates.json").read_text())["candidates"][0]["path"] == "/api/items"
     assert "budget_exhausted_partial_results_preserved" in log
     assert "run_status:incomplete_budget" in log
 
 
-def test_browser_failed_without_valid_api_is_hard_failure(tmp_path, monkeypatch):
+def test_browser_failed_without_api_keeps_valid_r2_output(tmp_path, monkeypatch):
     class EmptyCrawler(StaticFixtureCrawler):
         async def crawl(self):
             return SimpleNamespace(scripts=[], pages=[], links=[], forms=[])
@@ -81,9 +84,9 @@ def test_browser_failed_without_valid_api_is_hard_failure(tmp_path, monkeypatch)
     config.write_text(json.dumps({"site_id": "test", "allowed_hosts": ["app.example.com"]}))
     out = tmp_path / "result.json"
     code = asyncio.run(run_pipeline("https://app.example.com/", str(config), str(out), 5))
-    assert code == 1
+    assert code == 0
     assert json.loads(out.read_text())["endpoints"] == []
-    assert "run_status:failed" in (tmp_path / "tool.log").read_text()
+    assert "run_status:partial_browser_failure" in (tmp_path / "tool.log").read_text()
 
 
 def test_budget_timeout_keeps_completed_dynamic_requests(tmp_path, monkeypatch):
@@ -97,8 +100,8 @@ def test_budget_timeout_keeps_completed_dynamic_requests(tmp_path, monkeypatch):
 
     code, data, log = run_with_browser(tmp_path, monkeypatch, interrupted_browser)
     assert code == 0
-    assert {(e["method"], e["path"]) for e in data["endpoints"]} == {
-        ("GET", "/api/items"), ("GET", "/api/observed")}
+    assert {(e["method"], e["path"]) for e in data["endpoints"]} == {("GET", "/api/observed")}
+    assert json.loads((tmp_path / "static_candidates.json").read_text())["candidates"][0]["path"] == "/api/items"
     assert "run_status:incomplete_budget" in log
 
 
@@ -108,7 +111,8 @@ def test_normal_run_marks_completed(tmp_path, monkeypatch):
 
     code, data, log = run_with_browser(tmp_path, monkeypatch, healthy_browser)
     assert code == 0
-    assert len(data["endpoints"]) == 1
+    assert data["endpoints"] == []
+    assert json.loads((tmp_path / "static_candidates.json").read_text())["candidates"][0]["path"] == "/api/items"
     assert "run_status:completed" in log
 
 

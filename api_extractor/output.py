@@ -36,3 +36,36 @@ def write_result(path: str | Path, result: dict) -> None:
     temporary = destination.with_suffix(destination.suffix + ".tmp")
     temporary.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     temporary.replace(destination)
+
+def write_static_review(path: str | Path, site: str, unverified: list[dict]) -> None:
+    """Store source-code-only hints separately; do NOT fabricate request evidence.
+
+    Deliberately omit source snippets, headers, query values and response bodies
+    to avoid copying secrets into an extra diagnostic artifact.
+    """
+    rows = []
+    for endpoint in unverified:
+        sources = [
+            {key: evidence[key] for key in ("type", "file", "loc") if key in evidence}
+            for evidence in endpoint.get("evidence", [])
+            if isinstance(evidence, dict) and evidence.get("type") in {"html", "bundle"}
+        ]
+        rows.append({
+            "method": endpoint["method"],
+            "host": endpoint["host"],
+            "path": endpoint["path"],
+            "reason": "no_observed_request",
+            "sources": sources,
+        })
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary = destination.with_suffix(destination.suffix + ".tmp")
+    temporary.write_text(
+        json.dumps({
+            "site": site,
+            "kind": "unverified_static_candidates",
+            "candidates": rows,
+        }, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    temporary.replace(destination)

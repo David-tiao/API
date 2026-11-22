@@ -46,8 +46,10 @@ def test_full_static_pipeline_on_local_site(tmp_path, monkeypatch):
         assert exit_code == 0
         output = json.loads(result.read_text())
         assert output['site'] == 'local-integration'
-        assert [(x['method'], x['path']) for x in output['endpoints']] == [('GET', '/api/users')]
-        assert output['endpoints'][0]['evidence'][0]['file'].startswith('evidence/js/')
+        assert output['endpoints'] == []
+        review = json.loads((tmp_path / 'static_candidates.json').read_text())
+        assert [(x['method'], x['path']) for x in review['candidates']] == [('GET', '/api/users')]
+        assert review['candidates'][0]['sources'][0]['file'].startswith('evidence/js/')
         assert (tmp_path / 'tool.log').exists()
         assert 'main.js' in (tmp_path / 'tool.log').read_text()
     finally:

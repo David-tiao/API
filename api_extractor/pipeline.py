@@ -9,10 +9,10 @@ from .candidates import from_html_forms, from_network_records
 from .config import load_site_config
 from .crawler import ResourceCrawler
 from .dynamic_analysis import DynamicAnalyzer
-from .evidence import audit_endpoints
+from .evidence import audit_endpoints, split_by_request_proof
 from .jsonl_logger import JsonlLogger
 from .normalization import normalize_candidates
-from .output import build_result, write_result
+from .output import build_result, write_result, write_static_review
 from .request_control import RequestGate
 from .scope import ScopeGuard
 from .static_analysis import StaticAnalyzer
@@ -50,6 +50,7 @@ async def run_pipeline(target: str, config_path: str, out_path: str, budget: int
     exit_code = 0
     outcome = "completed"
     endpoints: list[dict] = []
+    static_only: list[dict] = []
     config = None
     dynamic_records: list[dict] = []
     dynamic: DynamicAnalyzer | None = None
@@ -123,15 +124,19 @@ async def run_pipeline(target: str, config_path: str, out_path: str, budget: int
             logger.write("-", target, 0, "verify", note=(
                 f"evidence_audit:invalid_references={invalid_refs},dropped_endpoints={dropped}"
             ))
+        # An audited static excerpt is not proof that its API was requested.
+        # Keep such hints for review but never label them as observed in result.json.
+        endpoints, static_only = split_by_request_proof(endpoints)
+        logger.write("-", target, 0, "verify", note=(
+            f"request_proof_gate:confirmed={len(endpoints)},static_only={len(static_only)}"
+        ))
         site_name = config.site_id or site_name
-        # Browser errors cannot erase verified static results. When the browser
-        # failed and no evidence survived, however, the job genuinely failed.
-        if outcome == "partial_browser_failure" and not endpoints:
-            exit_code = 1
-            outcome = "failed"
+        # R2 requires 0 for a schema-valid deliverable, including an empty but
+        # honestly labelled partial browser result. Fatal pipeline failures remain 1.
     except Exception as exc:
         logger.write("-", target, 0, "verify", note=f"pipeline_error:{type(exc).__name__}")
         endpoints = []
+        static_only = []
         exit_code = 1
         outcome = "failed"
     finally:
@@ -145,6 +150,11 @@ async def run_pipeline(target: str, config_path: str, out_path: str, budget: int
             exit_code = 1
             outcome = "failed"
             write_result(destination, fallback)
+        try:
+            write_static_review(out_dir / "static_candidates.json", site_name, static_only)
+        except Exception as exc:
+            # The sidecar is diagnostic; a valid --out result must still be returned.
+            logger.write("-", target, 0, "verify", note=f"static_review_write_error:{type(exc).__name__}")
         logger.write("-", target, 0, "verify", note=f"run_status:{outcome}")
         logger.close()
     return exit_code
