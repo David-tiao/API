@@ -54,6 +54,19 @@ for n in 1 2; do
     > "$out/stdout.log" 2> "$out/stderr.log" || {
     cat "$out/stderr.log" >&2; cat "$out/stdout.log" >&2; exit 1;
   }
+  # Independent validation inside the built image, not just output.py's own check.
+  docker run --rm --pull=never --network none --read-only \
+    -v "$out:/out:ro" --entrypoint python "$IMAGE" -c '
+import json
+from pathlib import Path
+from jsonschema import Draft202012Validator
+root=Path("/out")
+result=json.loads((root/"result.json").read_text(encoding="utf-8"))
+schema=json.loads(Path("/app/api_extractor/result.schema.json").read_text(encoding="utf-8"))
+errors=list(Draft202012Validator(schema).iter_errors(result))
+assert not errors, "; ".join(error.message for error in errors[:3])
+print("Independent JSON Schema validation PASS")
+'
   python3 - "$out" <<'PY'
 import json
 from pathlib import Path
@@ -73,8 +86,15 @@ for ep in eps:
         rel=Path(ev['file']); assert not rel.is_absolute() and '..' not in rel.parts
         f=(p/rel).resolve(); assert f.is_relative_to(p.resolve()) and f.is_file()
         entries=json.loads(f.read_text())['log']['entries']
-        req=entries[ev['request_index']]['request']
+        entry = entries[ev['request_index']]
+        req=entry['request']
         assert req['method']=='GET' and req['url'].endswith('/api/items')
+        assert entry['response']['status'] == 200, 'HAR reports non-success status'
+        assert any(row.get('request_index') == ev['request_index']
+                   and row.get('method') == 'GET'
+                   and row.get('url') == req['url']
+                   and row.get('status') == entry['response']['status']
+                   for row in log), 'HAR request does not correlate with a real log entry'
 print('Synthetic run passed:', len(result['endpoints']), 'endpoints')
 PY
 done

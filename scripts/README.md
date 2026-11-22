@@ -18,3 +18,6 @@ V10 没有移动现有 Shell 脚本，避免历史 Ubuntu 命令失效。
 ### V15 自动 Docker 回归
 
 新增 `ci_docker_smoke.sh`。此脚本仅面向已存在的测试镜像及本仓库的**合成站点**：创建独立的 internal Docker 网络与临时目标容器，使用只读根文件系统加唯一 `/out` 挂载执行两次正式 CLI，并验证实际请求日志、HAR 和结果一致性。只移除脚本亲自创建的网络、容器和临时目录，不调用 `docker prune`、`systemctl`、`sudo`，不操作用户其他容器。GitHub Actions 优先在离线测试成功后执行。真实 Docker 运行结果尚待 GitHub Actions 核实。
+
+
+**V15 CI 加固**：脚本后续增加独立 `jsonschema.Draft202012Validator` 校验，以及 HAR/日志之间索引、Method、URL、HTTP 状态码的核对；这类代码加固仍需在实际 GitHub Runner 上重新执行通过后才可标记通过。

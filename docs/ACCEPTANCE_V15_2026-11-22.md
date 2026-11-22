@@ -8,6 +8,28 @@
 - 合成模拟站：[tests/fixtures/docker_smoke_site.py](../tests/fixtures/docker_smoke_site.py)。仅返回自造的 HTML、JS 和 JSON：根页面加载 `/app.js`，浏览器 JS 必须真实调用 `GET /api/items`。
 - Docker 验收脚本：[scripts/ci_docker_smoke.sh](../scripts/ci_docker_smoke.sh)，默认镜像名 `api-extractor-ci:latest`，需要本机 Docker，不会主动安装或删除用户的其他镜像/容器。
 
+## 2. V15 首次 GitHub Actions 真实运行结果（已核验）
+
+**运行链接**：[GitHub Actions #1](https://github.com/David-tiao/API/actions/runs/45011683183)  
+**代码基线**：`466dde4019d20da5a6deff52f4dc227b11f68ec7`  
+**运行状态**：`completed / success`，两个独立 Job 均完成。
+
+| 验收项目 | 实际结果 | 证据类型 |
+|---|---:|---|
+| GitHub 精确提交全仓库 pytest | **137 passed in 4.03s** | 完整 Job 日志 |
+| Python/Node/Bash 语法、CLI --help、依赖安装 | **通过** | Job 步骤全为 success |
+| 已跟踪内部资料检测 | **通过** | Git 路径检查 |
+| 原 Dockerfile 实际构建 | **28 秒** | Docker Job 日志 |
+| Docker 镜像原始大小 | **2,864,215,392 字节（约 2.86 GB）** | `docker image inspect` |
+| 真实 Chromium 连接合成 HTTP 站点 | **第 1 轮：1 条 API** | internal-only Docker 网络 |
+| 第二次独立执行 | **第 2 轮：1 条 API** | 独立 `/out`，真正再次启动 |
+| 两轮 Endpoint 集合 | **一致（1 条）** | CI 的方法/主机/路径集合比较 |
+| 合成请求 `GET /api/items` | **实际触发并有请求日志及 HAR** | 测试脚本的具体断言 |
+
+**限定解释**：137 项测试和两个 Docker 运行在同一个 GitHub commit 上，能证明通用工具在**自建合成 HTTP 站点**执行真实浏览器与完整基础交付路径；没有证明官方未知 S1～S5、真实代理 R4/R5、系统级 R7/R8 审计和跨会话重放分数。构建时间是 GitHub Runner 此次实际耗时，不能保证评测机耗时相同。
+
+**进一步加固**：V15 后续提交补充独立 JSON Schema 二次校验与逐个 HAR/log 索引、状态的一一核查，并让每次 main 提交（包括仅文档变更）重新触发 CI。新提交的结果须以其自己的 GitHub Actions 记录为准，不能自动继承上述运行结论。
+
 ## 两阶段质量门禁
 
 | 阶段 | 具体检查 | V15 初次提交时状态 |

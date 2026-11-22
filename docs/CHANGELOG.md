@@ -14,6 +14,12 @@
 
 已清理公开工作树中不应跟踪的内部材料，并更新 Git/Docker 排除规则。此提交没有改变扫描器源码、CLI、Schema 或验收结果。**注意：正常删除提交不清除历史 Git 对象或外部缓存；历史彻底清理需要单独进行，并应优先调整仓库可见性。**
 
+## V15 验证增量：GitHub Actions 首轮成功与证据核对加固
+
+代码基线 `466dde4019d20da5a6deff52f4dc227b11f68ec7` 首轮 GitHub Actions [运行记录](https://github.com/David-tiao/API/actions/runs/45011683183) 已完成，两个 Job 均成功：**全仓库 pytest 137 项通过**；Docker 原构建 **28 秒**、镜像大小 **2,864,215,392 字节**；internal Docker 网络中的真实 Chromium 两轮分别发现 **1 条**合成 GET API，集合一致。最新增量加强独立 JSON Schema/HAR/日志对齐及所有 main 提交的 CI 触发，等新流水线结束再认定最新版通过。
+
+这只是自建模拟站点基础验收，非 S1～S5 官方隐藏站点、真实网络越界审计或历史保密清理的最终验收。详见 [V15 验收记录](ACCEPTANCE_V15_2026-11-22.md)。
+
 ## 最新迭代：V15 · 同一提交的自动回归与隔离 Docker 双轮验收（2026-11-22）
 
 **新增**：`.github/workflows/quality-gate.yml`、`scripts/ci_docker_smoke.sh`、`tests/fixtures/docker_smoke_site.py`、`tests/test_docker_smoke_fixture.py`；文档详见 [V15 验收说明](ACCEPTANCE_V15_2026-11-22.md)。

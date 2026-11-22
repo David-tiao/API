@@ -351,3 +351,6 @@ V12 默认不把未观察到的 JS/HTML 请求当成正式 API。V13 增加**仅
 本地手动运行（必须已构建镜像、允许本机 Docker 操作）：`bash scripts/ci_docker_smoke.sh api-extractor-ci:latest`。具体契约、当前运行结果和未验证项见 [docs/ACCEPTANCE_V15_2026-11-22.md](docs/ACCEPTANCE_V15_2026-11-22.md)。
 
 此 CI **不访问真实考核站点**，不包含任何内部资料；请先将 GitHub 仓库设为 Private，并单独完成旧提交历史清理。真实 Docker、官方 R1～R8、S1～S5 及正式重放只有实际验证后才能给出最终结论。
+
+
+**V15 首轮验证更新**：GitHub Actions [Run #1](https://github.com/David-tiao/API/actions/runs/45011683183) 已真实执行，精确 checkout 137 项测试通过；Docker 28 秒构建、镜像 2,864,215,392 字节；自建隔离站点真实 Chromium 双轮各输出 1 条 API。后续提交会对 JSON Schema 和 HAR/日志索引作更严格的二次检查。参见 [V15 记录](docs/ACCEPTANCE_V15_2026-11-22.md)，这些数字不是正式隐藏站点评分。

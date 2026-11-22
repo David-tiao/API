@@ -18,3 +18,6 @@
 
 
 - **V15** `test_docker_smoke_fixture.py`：独立运行合成 HTTP 服务，通过本地 loopback 真实请求 HTML、JS、JSON（本地 **1 项通过**）；`fixtures/docker_smoke_site.py` 供 CI Docker synthetic smoke 使用。配置在同一 GitHub commit 上运行全仓库 `pytest` 后再执行 Docker 镜像构建与两个真实浏览器样本。**CI 尚未返回结果之前，不能说完整仓库或 Docker 已通过**。
+
+
+**V15 真实 CI 记录**：首次 GitHub Actions commit `466dde4` 全仓库 **137 passed in 4.03s**（含新夹具测试），Docker 双轮各 1 条合成 API；后续每次 main 提交都将触发测试，最新版以其 Actions 运行状态为准。

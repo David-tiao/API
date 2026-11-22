@@ -2,17 +2,7 @@ name: API Extractor reproducible quality gate
 on:
   push:
     branches: [main]
-    paths:
-      - '.github/workflows/quality-gate.yml'
-      - 'api_extractor/**'
-      - 'tests/**'
-      - 'tools/**'
-      - 'scripts/ci_docker_smoke.sh'
-      - 'Dockerfile'
-      - 'requirements.txt'
-      - 'pyproject.toml'
-      - 'package.json'
-      - 'package-lock.json'
+    # Check every main commit, including documentation-only changes.
   workflow_dispatch:
 
 permissions:

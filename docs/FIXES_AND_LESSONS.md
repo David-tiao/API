@@ -195,3 +195,8 @@ docker run --rm --pull=never api-extractor:0.1.0 --help
 **当前实际验证**：本地创建的 Python fixture 真实提供 200 HTML/JS/JSON，fixture 单测 1 项通过；CI YAML 解析、Shell/Python 语法检查通过。Docker 与完整仓库 pytest 需要 GitHub Actions 运行后才算实测，不得提前写成 PASS。
 
 **遗留限制**：仅验证合成站点，不能证明复杂 S1～S5、认证/签名、真实重放及隐藏评分；只读 rootfs 不等于对所有运行期读写做过系统审计。内部资料旧 Git 对象仍需由仓库所有者执行专门的历史清理。
+
+
+### V15 实际验证补充
+
+首次 GitHub Actions Run #1（提交 `466dde4`）完成：当前精确 GitHub checkout 中的 137 项测试全部通过，Docker 镜像构建 28 秒，大小 2,864,215,392 字节；自造 internal HTTP 站点的真实 Chromium 双轮各发现 1 条 API、结果集合一致。证明 CI 链路可在干净 GitHub Runner 上执行。之后新增独立 Schema 校验和 HAR/log 请求关联更严格的检查，尚需在新提交中复跑。不能由单个合成 API 推断全部复杂协议、真实权限边界或正式重放率。
