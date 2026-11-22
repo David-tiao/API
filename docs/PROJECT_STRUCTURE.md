@@ -43,3 +43,8 @@ API/
 现有 `python -m api_extractor.cli`、`Dockerfile`、`tools/js_ast_analyzer.cjs`、`scripts/*.sh`、JSON Schema 路径均保留。**考核参考结构包含 `src/`，目前仓库使用根目录 `api_extractor/`，这是待正式兼容性验证的结构差异**。本轮没有创建空 `src/` 或复制第二份源码来假装完成迁移。见 [ADR-0001](adr/0001-compatibility-first.md)。
 
 旧 ZIP/备份原始 Git Blob SHA 不变，仅移动至 `archive/legacy/`；不要从旧归档恢复代码覆盖当前 `api_extractor/`。本地 `site.json` 不应填写真实凭据再提交到公开仓库。
+
+
+### V14 离线评分模块（不属于生产扫描路径）
+
+`api_extractor/offline_benchmark.py` 为独立离线质量评估程序；输入合成真值与两轮历史输出，读取本地 HAR/JSONL，不触发外部请求，也不修改扫描器生产 CLI/Schema。配套 `tests/test_offline_benchmark.py`、`tests/test_benchmark_pipeline.py` 与 `tests/fixtures/benchmark/`。详细参见 [OFFLINE_BENCHMARK.md](OFFLINE_BENCHMARK.md)。

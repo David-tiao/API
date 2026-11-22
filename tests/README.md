@@ -12,3 +12,6 @@
 - **`test_candidates.py`**：V10 表单/网络记录转换的 8 项无网络测试。
 
 完整运行 `python -m pytest -q` 需要当前仓库依赖。V10 仅独立运行 8 项新增测试，并执行相关 Python 语法检查；**当前 GitHub 全仓库 pytest、Docker、真实 Playwright 未重新执行**。
+
+
+- **V14** `test_offline_benchmark.py`、`test_benchmark_pipeline.py`：评分规则、T1/T2/T3、FP/重复/第三方域、独立 HAR/日志与双轮稳定性（32 项新增测试）；`tests/fixtures/benchmark/` 是**纯合成**真值。Python 3.13.5 隔离开发副本完整 119 项通过，新增专项 32 项通过；未在真实 Docker/Chromium 中执行。

@@ -1,0 +1,11 @@
+{
+  "site": "synthetic-offline",
+  "allowed_hosts": ["app.example.test", "api.example.test"],
+  "endpoints": [
+    {"method": "GET", "path": "/api/items", "tier": "T1"},
+    {"method": "POST", "path": "/api/orders/{id}", "tier": "T1"},
+    {"method": "GET", "path": "/api/account", "tier": "T2"},
+    {"method": "WS", "path": "/live", "tier": "T3"},
+    {"method": "GQL", "path": "/graphql", "tier": "T3"}
+  ]
+}

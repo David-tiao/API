@@ -2,11 +2,25 @@
 
 > 项目：[David-tiao/API](https://github.com/David-tiao/API) · 选题 B：前端 API 提取工具  
 > 记录日期：2026-11-22（Asia/Singapore）  
-> **说明**：以下“V0～V13”是便于理解的**开发迭代阶段编号**，不是正式 Git Tag 或发布版本号。当前 `pyproject.toml` 中的软件版本仍为 `0.1.0`，不要把阶段编号当作发行版本。
+> **说明**：以下“V0～V14”是便于理解的**开发迭代阶段编号**，不是正式 Git Tag 或发布版本号。当前 `pyproject.toml` 中的软件版本仍为 `0.1.0`，不要把阶段编号当作发行版本。
 
 ## 验收快照：V10（2026-11-22，非功能版本）
 
 针对代码基线 `1774725441e`，新增 [V10 验收报告](ACCEPTANCE_V10_2026-11-22.md)。结果：V10 候选纯函数的 8 项当前 GitHub SHA 一致的测试通过；但 R5 注册域解析存在可复现越界风险，静态推断的 API 无法自然满足逐条请求日志与重放证明。完整 GitHub 当前全仓库测试、Docker 和隐藏站点未验证。**本次只更新文档，不修改业务代码；不视为 V11 版本发布。**
+
+## 最新迭代：V14 · 离线量化评分基准与双轮稳定性（2026-11-22）
+
+**新增文件**：`api_extractor/offline_benchmark.py`、`tests/test_offline_benchmark.py`、`tests/test_benchmark_pipeline.py`、`tests/fixtures/benchmark/ground_truth.synthetic.json`、`tests/fixtures/benchmark/README.md`、`docs/OFFLINE_BENCHMARK.md`、`docs/ACCEPTANCE_V14_2026-11-22.md`。
+
+**动机**：V12/V13 已能区分静态猜测和已观察请求，但只有 pytest 数量无法说明总体准确度、漏报率及两轮输出稳定性。依照考核细则第 3.2、3.5、3.5.1、3.6 节，新增一个**只读、完全离线**的开发评分器，读取人工为自建站点确认的 ground truth 和两次独立运行的 `result.json`、`tool.log`、HAR。
+
+**实现**：按 METHOD + 归一化路径匹配；T1/T2/T3 权重为 1.0/1.4/1.8；Recall 部分为 40 分，Precision 为 20 分（FP > TP 时精确率项清零）；独立输出目录的两轮局部分数采用 `0.7 × mean + 0.3 × min` 修正。额外检查预测重复项、第三方域、HAR/JSONL 是否按方法、Host、Path、索引、状态对应；输出端点集合 Jaccard、剔除运行时间和证据索引的语义指纹，支持自设门槛并原子写入报告。五站权重为 1/1/1.2/1.3/1.5，四站必须仅使用 S2～S5；支持局部客观分聚合。
+
+**为何不报告官方 100 分**：语义 20 分、正式证据链 10 分、工程质量 10 分不在这个本地工具的自动评分范围内；`official_100_point_score` 固定为 `null`。真值外确实存在的 API 官方可人工纠正为 TP，而离线工具保守计 FP；重复接口保守按额外 FP 计。本地 HAR/日志一致并不意味着通过实际网络重放。
+
+**离线验证**：在 Python 3.13.5 的独立 V14 开发工作副本运行 `python -m pytest -q -o addopts='' --disable-warnings`，**119 项测试通过**；新评分器及管线专项 **32 项通过**；`python -m compileall -q api_extractor tests` 通过。合成单条 T1 夹具中，静态-only 正式清单 0/60，显式批准的 MockTransport GET 产生有效 HAR/日志后，两次模拟运行都为 60/60、Jaccard=1、证据一致率 100%。**这些是开发测试，不是当前 GitHub 完整 checkout、真实 Docker、真实网络或隐藏评测 PASS。**
+
+**兼容性**：没有修改扫描器主流程、CLI、Dockerfile、评测 `result.json` Schema 或运行期访问边界；评分器通过独立的 `python -m api_extractor.offline_benchmark` 命令调用，不参与生产扫描。使用与方法和局限详见 [离线基准说明](OFFLINE_BENCHMARK.md) 与 [V14 验收](ACCEPTANCE_V14_2026-11-22.md)。
 
 ## 最新迭代：V13 · 本地显式授权 GET 验证（2026-11-22）
 
@@ -187,6 +201,7 @@ python -m compileall -q api_extractor
 | V11 | [`951a50afd`](https://github.com/David-tiao/API/commit/951a50afd34561f0a36f67afb630a656905eb7c6) | PSL 域名边界与 WS 共享限流器 | R5/R4 安全修复 | 19 项定向测试；正式 Docker 未验收 |
 | V12 | [`3efe6a3e2`](https://github.com/David-tiao/API/commit/3efe6a3e2f28d4b4cebbc9f224cfca39dced3bf9) | request-backed 正式结果与静态待验证 sidecar | R6 证据分级 | 50 项相关离线测试，未做真实重放 |
 | V13 | [`21ab27c35`](https://github.com/David-tiao/API/commit/21ab27c35eae3b1e27b64d37719113a97391a275) | 本地显式 GET 授权与真实 HAR/日志核查 | 开发辅助/证据质量 | 87 项隔离离线测试；正式评测未验证 |
+| V14 | 本次 Git 提交（见文件历史） | 合成真值、Recall/Precision、证据交叉核查与双轮稳定性 | 离线质量基准 | 开发副本 119 项通过，新增专项 32 项；Docker 未验收 |
 
 以上提交按**实现顺序**排列。GitHub 原始提交时间统一以 Git 元数据为准；2026-11-21 UTC 的提交对应新加坡时间 2026-11-21 至 22 日。
 

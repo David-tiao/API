@@ -189,6 +189,14 @@ V10 结构变更包括 `archive/legacy/` 历史归档与 `docs/README.md` 导航
 
 **考核限制**：正式规则 3.6 不允许为每个目标人工补充接口路径。因此 `explicit_readonly_get_urls` 仅适用于自行搭建/授权练习站点，官方标准配置无该字段时保持 V12 行为。本轮 87 项测试是本地 MockTransport 与模拟 HTTP/浏览器测试，不是 Docker 或官方 PASS。设计决策参见 [ADR-0002](adr/0002-local-get-verification.md)。
 
+## 5.7 V14：独立、无副作用的离线量化评估层
+
+V14 新增 `offline_benchmark.py`，**不接入扫描器生产流水线**。开发者为自建/授权的固定模拟站点准备独立的 T1/T2/T3 真值和两个运行目录，评分器在本地读取 `result.json`、`tool.log` 与 HAR，使用**独立路径归一化实现**，计算按 Method + Path 匹配的 TP/FP/FN、按难度权重的 Recall、Precision（FP > TP 时归零）、两次运行稳定性修正。证据交叉检查拒绝缺失、路径越界、HAR 索引/请求状态不符的条目，并报告匹配真值和全部预测中的证据一致率。
+
+为了避免循环自证，评分器不会调用 `EvidenceAuditor` 作为评分依据，而是独立完成文件/HAR/JSONL 的验证。这样可以检测到生产审计逻辑中可能存在的不同错误；但合成 JSON 本身可以伪造，因此这仍不是网络层的正式 R6 验收。
+
+严格不生成官方 100 分：自动化只计算 Recall(40)+Precision(20) 的 `objective_points_60`；语义(20)、证据正式评分(10)、工程质量(10) 标记未评分。集合 Jaccard、语义 SHA-256 指纹为新增诊断指标，不冒充组织方计分公式。详情见 [OFFLINE_BENCHMARK.md](OFFLINE_BENCHMARK.md)。
+
 ## 6. 当前验证等级与未解决问题
 
 本轮不扫描真实网站、不运行 Docker/Chromium。隔离 Python 工作副本的离线测试和本地模拟 HTTP 夹具 **共 35 项通过**，Python `compileall` 及 Bash 语法检查通过。测试新增了证据文件缺失、路径穿越、越界 symlink、HAR 错索引、错 Method、日志缺失及 WS/GQL 映射等场景。

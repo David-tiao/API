@@ -331,3 +331,13 @@ V12 默认不把未观察到的 JS/HTML 请求当成正式 API。V13 增加**仅
 只有该 URL 同时存在于静态发现的 GET 候选，经过作用域和共享限流器检查，且得到真正的 2xx JSON 响应，才会记录 `tool.log` 和 `evidence/probe.har` 并在证据审计通过后进入 `result.json`。默认无字段时验证请求数为 0；不发送 Cookie、用户名/密码及自定义 Header，不跟随重定向，拒绝 Query、URL 凭据与动态占位符。
 
 **GET 本身不保证只读，必须自行确认该 URL 的授权和无副作用。官方第 3.6 节不允许针对隐藏站点手工枚举接口作为适配方式**；本选项仅用于本地实验，不应作为正式评分提升的依据。87 项隔离离线测试通过，不意味着真实 Docker/Chromium/重放通过。见 [CHANGELOG](docs/CHANGELOG.md) V13、[V13 验收记录](docs/ACCEPTANCE_V13_2026-11-22.md) 与 [ADR-0002](docs/adr/0002-local-get-verification.md)。
+
+
+
+## 22. V14：离线 Recall/Precision 与双轮稳定性基准
+
+新增可**独立执行、完全离线**的 `python -m api_extractor.offline_benchmark`。从自建模拟站点的 ground truth 和两次独立运行目录读取结果、HAR、`tool.log`，计算按照考核细则权重的 Recall（40）、Precision（20），分析重复接口、第三方域名误报、HAR/日志一致性、T1/T2/T3 分档召回，以及 `0.7 × mean + 0.3 × min` 双轮修正。
+
+使用方法：[docs/OFFLINE_BENCHMARK.md](docs/OFFLINE_BENCHMARK.md)。本轮离线执行结果：[V14 验收记录](docs/ACCEPTANCE_V14_2026-11-22.md)；更迭历史：[CHANGELOG.md](docs/CHANGELOG.md)。
+
+**不计**官方语义 20 分、证据链 10 分和工程质量 10 分；报告的 `official_100_point_score` 固定为 `null`。隔离组合工作副本 119 项 pytest 通过，其中 V14 新增 32 项；尚未进行当前 GitHub 精确 checkout 全量测试或真实 Docker/Chromium 与隐藏站点评测。该模块仅为离线开发质量门槛，不修改正式扫描行为。

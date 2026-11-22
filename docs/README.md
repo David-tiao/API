@@ -2,6 +2,8 @@
 
 | 目的 | 权威文档 |
 |---|---|
+| **V14** 离线评分验收与真实执行记录 | [ACCEPTANCE_V14_2026-11-22.md](ACCEPTANCE_V14_2026-11-22.md) |
+| 离线评分器使用方法、公式与局限 | [OFFLINE_BENCHMARK.md](OFFLINE_BENCHMARK.md) |
 | **V13** 本地 GET 验证、安全边界及验收 | [ACCEPTANCE_V13_2026-11-22.md](ACCEPTANCE_V13_2026-11-22.md) |
 | **V12** R6 证据分级与正式输出风险 | [ACCEPTANCE_V12_2026-11-22.md](ACCEPTANCE_V12_2026-11-22.md) |
 | **V11** 验收整改状态、风险与下轮重点 | [ACCEPTANCE_V11_2026-11-22.md](ACCEPTANCE_V11_2026-11-22.md) |
