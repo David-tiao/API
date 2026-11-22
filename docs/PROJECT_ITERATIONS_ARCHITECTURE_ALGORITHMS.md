@@ -144,6 +144,14 @@ Node `@babel/parser` 将前端 JS 解析为语法树，识别 `fetch`、`axios.g
 
 技术理由和离线验收记录见 [CHANGELOG.md](CHANGELOG.md) 的 V8，以及 [FIXES_AND_LESSONS.md](FIXES_AND_LESSONS.md) 的第 11 节。
 
+## 5.2 V9 的审计关联与日志安全改进
+
+`JsonlLogger` 现在会记下追加式 `tool.log` 在本轮开始前的字节偏移 `start_offset`；主流程把它传给 `EvidenceAuditor`，因此证据审核只消费本轮动态请求行。HAR 和日志按 **(Method, Host, 标准化 Path, request_index, status)** 联合匹配，防止上一轮同路径请求或错误索引被误用。静态 JS/HTML 的文件/片段审计与动态 HAR 独立，不因缺少运行时请求而丢弃真正的静态发现。
+
+URL 日志在写入前统一去掉 userinfo 并隐藏敏感 Query 值。短键（如 `key`、`jwt`、`code`）采用完整字段名/分词判断，避免 `design` 等普通名称被粗暴覆盖。管线异常日志只记录类型以减少泄露风险。这一策略改善最常见的路径，但不替代对所有证据文件和第三方输出的完整保密审计。
+
+详见 [CHANGELOG.md](CHANGELOG.md) 的 V9、[FIXES_AND_LESSONS.md](FIXES_AND_LESSONS.md) 的第 12 节。此次离线测试属于 **30 项针对性测试**，不得与此前 35 项测试相加来推断当前全仓库测试数。
+
 ## 6. 当前验证等级与未解决问题
 
 本轮不扫描真实网站、不运行 Docker/Chromium。隔离 Python 工作副本的离线测试和本地模拟 HTTP 夹具 **共 35 项通过**，Python `compileall` 及 Bash 语法检查通过。测试新增了证据文件缺失、路径穿越、越界 symlink、HAR 错索引、错 Method、日志缺失及 WS/GQL 映射等场景。

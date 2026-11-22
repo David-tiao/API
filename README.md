@@ -289,3 +289,10 @@ bash scripts/acceptance_stage10.sh https://你的授权站点/ ./site.json 180
 本次迭代不改变命令行参数或输出 JSON Schema。完成后可通过 `tool.log` 中最后的 `run_status:` 记录区分 `completed`、`partial_browser_failure`、`incomplete_budget` 和 `failed`。**根据评测细则 R2，部分但合法的结果允许退出码 0；应同时检查日志状态，不应把退出码 0 当作浏览器阶段全部成功。**
 
 详细改动、对应提交和测试依据见 [docs/CHANGELOG.md](docs/CHANGELOG.md) 的 V8 记录。本轮新增 `tests/test_run_outcomes.py` 回归测试；真实 Docker 和陌生站点表现仍待验证。
+
+
+## 17. V9：日志脱敏与 HAR 证据一致性
+
+`JsonlLogger` 已强化 URL 账号密码、敏感 Query 值的遮蔽；证据审计只关联当前任务新增的 `tool.log` 行，且检查 HAR 的方法、主机、路径、请求索引与状态。输出 Schema、CLI 参数不变。详见 [V9 更迭记录](docs/CHANGELOG.md) 和 [修复经验](docs/FIXES_AND_LESSONS.md)。
+
+离线验证为**本轮 30 项针对性测试通过**，不代表当前主分支所有测试、真实 Chromium、Docker 或隐藏站点已验收。

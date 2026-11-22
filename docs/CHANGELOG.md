@@ -4,6 +4,37 @@
 > 记录日期：2026-11-22（Asia/Singapore）  
 > **说明**：以下“V0～V7”是便于理解的**开发迭代阶段编号**，不是正式 Git Tag 或发布版本号。当前 `pyproject.toml` 中的软件版本仍为 `0.1.0`，不要把阶段编号当作发行版本。
 
+## 最新迭代：V9 · 日志脱敏与本轮证据关联（2026-11-22）
+
+**代码提交**：[7208a2b6b](https://github.com/David-tiao/API/commit/7208a2b6be1391e373d4d1db9c93d51b85409e00)  
+**类型**：安全性、精确率与证据链可靠性；无 CLI、JSON Schema 或 Dockerfile 变动。  
+**修改文件**：`api_extractor/jsonl_logger.py`、`api_extractor/evidence.py`、`api_extractor/pipeline.py`、`tests/test_evidence_audit.py`、`tests/test_logger_redaction.py`、`tests/test_evidence_linking.py`。
+
+### 问题与修复理由
+
+1. **URL 凭据泄露风险**：旧版 `redact_url()` 只遍历 Query，不会删除 `https://user:password@host/` 里的用户名和密码；`key`、`jwt`、`csrf` 等查询字段也不一定脱敏。V9 明确删除 URL userinfo，识别这些敏感键，并在畸形 URL 时返回占位符而不是原始 URL。对 `design` / `barcode` 等普通字段不做粗暴子串脱敏，以免丢失业务信息。
+2. **跨轮旧日志误背书**：`tool.log` 采取 append 模式；旧版证据审计遍历全部历史请求，只匹配方法、主机、路径。这可能把前一轮的日志当成本轮 HAR 的有效请求。V9 在 JsonlLogger 初始化时记录当轮起始**字节偏移**，审计仅读取该偏移之后的记录。
+3. **HAR/日志绑定不充分**：V9 进一步要求 HAR 的 `request_index`、`response.status` 和日志内的索引、状态码一致。失败状态码不能当作正常 API 存在性的证据；`401/403` 仍可用作认证要求线索。
+4. **异常文本包含秘密的风险**：管线诊断日志只报告异常类型，不把未经处理的异常消息原文写入 `tool.log`。需要更细致诊断时应在受控环境下另行排查。
+
+### 验证与兼容性
+
+在本地隔离副本中，以仓库最初源码为基础，加入**此次修订的日志/证据模块**与相应测试夹具，执行了以下命令，**30 项测试通过**，并通过 `compileall`。这里的 30 项是本次**针对性回归集**，不是 GitHub 当前全仓库的 47 项或其他总数保证：
+
+```bash
+python -m pytest -q \
+  tests/test_evidence_audit.py tests/test_evidence_linking.py \
+  tests/test_logger_redaction.py tests/test_scope.py \
+  tests/test_normalization.py tests/test_output.py
+python -m compileall -q api_extractor
+```
+
+**兼容性**：结果 JSON 字段不变；`tool.log` 保留原始字段，仅对 URL 的敏感内容作更严格遮蔽；证据审计拒绝旧日志提供的虚假支持。已有静态源码证据不依赖动态日志，仍可保留。
+
+**仍未验证**：没有实际构建 Docker、启动 Chromium 或使用真实站点；也没有在本地完整复现 GitHub 当前主分支的所有源码及运行全部测试。旧日志仍保留在用户的输出目录，V9 的保护是**不再采纳旧日志进行证据背书**，并不会自动清除此前生成的敏感日志；需要用户自行在安全环境中处理历史日志。
+
+**余留问题**：可能仍有第三方库输出的异常正文、原始下载的网页/JS 文件、其他未知类型的敏感 URL 参数；此轮不承诺全系统隐私审计完成。
+
 ## 最新迭代：V8 · 运行状态与部分结果可靠性（2026-11-22）
 
 **代码提交**：[3e3193822](https://github.com/David-tiao/API/commit/3e3193822ed8ae78ee353ece00becc133adb4659)  
@@ -59,6 +90,7 @@
 | V6 | [`ba07d6e`](https://github.com/David-tiao/API/commit/ba07d6e2636bd13c34e111cbdb86180a626df01a) | 引入 EvidenceAuditor 独立证据审计 | 架构演进 | 验证引用一致性，不是端点可重放 |
 | V7 | [`5659d284`](https://github.com/David-tiao/API/commit/5659d2846572f9e43ce353d25d5c267b16360139) | 正式记录架构、算法及迭代依据 | 工程文档 | 文字对照源码，不是运行测试 |
 | V8 | [`3e3193822`](https://github.com/David-tiao/API/commit/3e3193822ed8ae78ee353ece00becc133adb4659) | 失败状态显式报告、预算取消保留部分 API | 可靠性与 R2 适配 | 35 项离线测试；真实 Docker 待验收 |
+| V9 | [`7208a2b6b`](https://github.com/David-tiao/API/commit/7208a2b6be1391e373d4d1db9c93d51b85409e00) | URL 凭据脱敏、跨轮日志隔离、HAR 索引和状态匹配 | 安全与证据质量 | 本次 30 项针对性离线测试；未全仓库实测 |
 
 以上提交按**实现顺序**排列。GitHub 原始提交时间统一以 Git 元数据为准；2026-11-21 UTC 的提交对应新加坡时间 2026-11-21 至 22 日。
 
