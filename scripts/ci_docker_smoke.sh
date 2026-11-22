@@ -113,7 +113,7 @@ if scenario == 'login':
     matching = [e for e in eps if (e['method'], e['host'], e['path']) == ('GET', 'fixture', expected)]
     assert len(matching) == 1, f'Authenticated GET API missing: {eps}'
     assert all((e['method'],e['path']) in {('GET', '/api/private'), ('GET', '/api/annual-report'), ('POST', '/api/session')} for e in eps)
-    assert any((e['method'],e['path']) == ('GET', '/api/annual-report') for e in eps), (\
+    assert any((e['method'],e['path']) == ('GET', '/api/annual-report') for e in eps), (
         'Authenticated two-hop report API was not discovered')
     ep = matching[0]
 else:
