@@ -5,6 +5,8 @@ import re
 from collections import defaultdict
 from urllib.parse import parse_qsl, urlsplit
 
+from .signature_semantics import observed_signature_fields
+
 _UUID = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$")
 _LONG_HEX = re.compile(r"^[0-9a-fA-F]{16,}$")
 _NUMERIC = re.compile(r"^\d+$")
@@ -130,6 +132,7 @@ def infer_note(path: str) -> str:
 
 def normalize_candidates(candidates: list[dict]) -> list[dict]:
     merged: dict[tuple[str, str, str], dict] = {}
+    signed_observations: dict[tuple[str, str, str], set[str]] = {}
     for candidate in candidates:
         # Failed/unfinished browser requests are not proof that an API exists.
         # Static candidates do not have an HTTP status by definition.
@@ -176,13 +179,22 @@ def normalize_candidates(candidates: list[dict]) -> list[dict]:
         if not evidence:
             continue
 
+        # Only an actual observed request can support signing metadata.
+        signature_labels = (
+            observed_signature_fields(candidate.get("headers"), url, candidate.get("post_data"))
+            if source in {"dynamic", "verified_get"} else []
+        )
+        if signature_labels:
+            signed_observations.setdefault(key, set()).update(signature_labels)
+
         entry = merged.get(key)
         if not entry:
             entry = {
                 "method": method,
                 "path": path,
                 "host": host,
-                "auth": infer_auth(candidate.get("headers"), url, candidate.get("post_data")),
+                "auth": ("sign" if signature_labels else
+                         infer_auth(candidate.get("headers"), url, candidate.get("post_data"))),
                 "params": {"path": path_params, "query": _merge_fields(query), "body": _merge_fields(body)},
                 "evidence": [],
                 "confidence": float(candidate.get("confidence", 0.5)),
@@ -200,7 +212,7 @@ def normalize_candidates(candidates: list[dict]) -> list[dict]:
             entry["params"]["body"] = _merge_fields(entry["params"]["body"], body)
             entry["params"]["path"] = _merge_fields(entry["params"]["path"], path_params)
             new_auth = infer_auth(candidate.get("headers"), url, candidate.get("post_data"))
-            if new_auth != "none":
+            if new_auth == "sign" or (new_auth != "none" and entry["auth"] != "sign"):
                 entry["auth"] = new_auth
             if candidate.get("response_content_type") or candidate.get("response_fields"):
                 entry["response"] = {
@@ -213,4 +225,12 @@ def normalize_candidates(candidates: list[dict]) -> list[dict]:
             if item not in entry["evidence"]:
                 entry["evidence"].append(item)
 
+    for key, fields in signed_observations.items():
+        if key in merged:
+            merged[key]["auth"] = "sign"
+            merged[key]["note"] = (
+                f"{merged[key][\u0027note\u0027]} | Signing fields observed: "
+                + ", ".join(sorted(fields)[:12])
+                + " (algorithm not reconstructed)"
+            )
     return sorted(merged.values(), key=lambda x: (x["host"], x["path"], x["method"]))
