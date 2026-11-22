@@ -110,9 +110,16 @@ def _observed_log(root: Path) -> set[tuple[str, str, str, int, int]]:
         for line in stream:
             try:
                 row = json.loads(line)
-                if row.get("phase") not in {"dynamic", "probe"}:
-                    continue
-                if row.get("phase") == "probe" and row.get("resource_type") != "explicit_safe_get":
+                phase = row.get("phase")
+                detail = row.get("detail_phase")
+                # Evaluate both newly normalized R6 logs and older saved runs.
+                # Redirect records are wire activity, not independent API proof.
+                if phase == "dynamic" and detail != "redirect":
+                    pass
+                elif ((phase == "verify" and detail == "probe") or phase == "probe"):
+                    if row.get("resource_type") != "explicit_safe_get":
+                        continue
+                else:
                     continue
                 url = urlsplit(str(row.get("url", "")))
                 index = row.get("request_index")
