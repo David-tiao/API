@@ -7,3 +7,6 @@ tests
 out
 output
 *.zip
+
+# Exclude internal assessment material from Docker build context.
+RECRUIT-2026-*.md

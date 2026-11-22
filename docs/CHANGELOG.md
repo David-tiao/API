@@ -8,6 +8,10 @@
 
 针对代码基线 `1774725441e`，新增 [V10 验收报告](ACCEPTANCE_V10_2026-11-22.md)。结果：V10 候选纯函数的 8 项当前 GitHub SHA 一致的测试通过；但 R5 注册域解析存在可复现越界风险，静态推断的 API 无法自然满足逐条请求日志与重放证明。完整 GitHub 当前全仓库测试、Docker 和隐藏站点未验证。**本次只更新文档，不修改业务代码；不视为 V11 版本发布。**
 
+## 安全维护：内部资料不纳入公开仓库（2026-11-22）
+
+已清理公开工作树中不应跟踪的内部材料，并更新 Git/Docker 排除规则。此提交没有改变扫描器源码、CLI、Schema 或验收结果。**注意：正常删除提交不清除历史 Git 对象或外部缓存；历史彻底清理需要单独进行，并应优先调整仓库可见性。**
+
 ## 最新迭代：V14 · 离线量化评分基准与双轮稳定性（2026-11-22）
 
 **新增文件**：`api_extractor/offline_benchmark.py`、`tests/test_offline_benchmark.py`、`tests/test_benchmark_pipeline.py`、`tests/fixtures/benchmark/ground_truth.synthetic.json`、`tests/fixtures/benchmark/README.md`、`docs/OFFLINE_BENCHMARK.md`、`docs/ACCEPTANCE_V14_2026-11-22.md`。

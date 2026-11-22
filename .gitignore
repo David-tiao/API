@@ -9,3 +9,6 @@ out/
 output/
 *.log
 .DS_Store
+
+# Internal assessment materials must never be committed.
+RECRUIT-2026-*.md
