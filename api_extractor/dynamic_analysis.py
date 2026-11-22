@@ -7,7 +7,7 @@ import re
 import httpx
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import parse_qsl, unquote, urljoin, urlsplit, urlunsplit
 
 from playwright.async_api import async_playwright
 
@@ -34,6 +34,50 @@ def _proxy_config() -> dict | None:
         config["password"] = parsed.password
     return config
 
+
+
+# A GET link is not guaranteed to be side-effect-free. Only ordinary anchors
+# are visited, and common destructive/session-changing actions are rejected.
+_UNSAFE_NAV_SEGMENTS = frozenset({
+    "logout", "log-out", "signout", "sign-out", "delete", "remove",
+    "destroy", "reset", "deactivate", "terminate", "unsubscribe",
+    "purchase", "checkout", "payment", "revoke", "disable",
+})
+_UNSAFE_NAV_ACTIONS = frozenset({
+    "logout", "signout", "delete", "remove", "destroy", "reset",
+    "deactivate", "terminate", "unsubscribe", "revoke", "disable",
+    "purchase", "checkout", "payment",
+})
+
+
+def _safe_readonly_nav_url(base_url: str, href: object, guard: ScopeGuard) -> str | None:
+    """Resolve an anchor without clicking it; reject unsafe or out-of-scope targets."""
+    if not isinstance(href, str):
+        return None
+    value = href.strip()
+    if not value or value.startswith("#") or value.lower().startswith(
+        ("javascript:", "data:", "mailto:", "tel:", "blob:")
+    ):
+        return None
+    try:
+        absolute = urljoin(base_url, value)
+        parsed = urlsplit(absolute)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            return None
+        if parsed.username is not None or parsed.password is not None:
+            return None
+        if not guard.is_allowed(absolute):
+            return None
+        parts = [unquote(part).lower() for part in parsed.path.split("/") if part]
+        if any(part in _UNSAFE_NAV_SEGMENTS for part in parts):
+            return None
+        for key, item in parse_qsl(parsed.query, keep_blank_values=True):
+            if key.lower() in {"action", "op", "operation", "do", "cmd", "command"}:
+                if unquote(item).strip().lower() in _UNSAFE_NAV_ACTIONS:
+                    return None
+        return urlunsplit((parsed.scheme, parsed.netloc, parsed.path or "/", parsed.query, ""))
+    except (TypeError, ValueError, UnicodeError):
+        return None
 
 class BrowserRequestLimiter:
     def __init__(self, gate: RequestGate):
@@ -107,6 +151,29 @@ class DynamicAnalyzer:
         except Exception:
             # Login is best-effort; no credential value is written to logs or evidence.
             return
+
+
+    async def _read_only_links(self, page) -> list[str]:
+        """Read bounded anchor URLs only; never click buttons or submit forms."""
+        try:
+            hrefs = await page.locator("a[href]").evaluate_all(
+                "(nodes) => nodes.slice(0, 200).map(node => node.getAttribute('href'))"
+            )
+            if not isinstance(hrefs, list):
+                return []
+            links: list[str] = []
+            seen: set[str] = set()
+            for href in hrefs:
+                url = _safe_readonly_nav_url(page.url, href, self.guard)
+                if url and url not in seen:
+                    seen.add(url)
+                    links.append(url)
+                if len(links) >= 24:
+                    break
+            return links
+        except Exception:
+            # An unusual DOM must not fail the whole browser phase.
+            return []
 
     async def _route_websocket(self, websocket_route) -> None:
         """Gate both WS connection creation and its open lifespan."""
@@ -423,12 +490,27 @@ class DynamicAnalyzer:
                 page.on("websocket", on_websocket)
 
                 await self._login(page, context)
-                visit_list = []
-                for url in [self.target, *pages]:
-                    if url not in visit_list and self.guard.is_allowed(url):
+                # Authenticated pages can reveal links missing from the public crawl.
+                await self._settle_page(0, timeout_seconds=2.0)
+                visit_list: list[str] = []
+                scheduled: set[str] = set()
+
+                def schedule_visit(url: str) -> None:
+                    if (url not in scheduled and len(visit_list) < 48
+                            and _safe_readonly_nav_url(self.target, url, self.guard)):
+                        scheduled.add(url)
                         visit_list.append(url)
+
+                for url in await self._read_only_links(page):
+                    schedule_visit(url)
+                for url in [self.target, *pages]:
+                    schedule_visit(url)
+
                 successful_navigations = 0
-                for url in visit_list[:12]:
+                index = 0
+                while index < len(visit_list) and index < 12:
+                    url = visit_list[index]
+                    index += 1
                     try:
                         start_index = len(self.records)
                         response = await page.goto(url, wait_until="domcontentloaded", timeout=15000)
@@ -441,6 +523,8 @@ class DynamicAnalyzer:
                         except Exception:
                             pass
                         await self._settle_page(start_index)
+                        for link in await self._read_only_links(page):
+                            schedule_visit(link)
                     except Exception as exc:
                         self.logger.write("GET", url, 0, "dynamic", note=f"page_navigation_failed:{type(exc).__name__}")
                 if successful_navigations == 0:
