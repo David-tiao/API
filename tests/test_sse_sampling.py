@@ -17,6 +17,7 @@ def test_one_real_event_is_sampled_without_credentials():
                               content=b':heartbeat\n\ndata: {"id": 1}\n\nmore: not included\n\n')
     result = run(handler)
     assert result.status == 200
+    assert type(result.body) is bytes  # Playwright route.fulfill rejects bytearray
     assert result.body == b':heartbeat\n\ndata: {"id": 1}\n\n'
     assert len(requests) == 1
     assert requests[0].method == 'GET'
@@ -65,4 +66,29 @@ def test_split_sse_event_across_chunks():
             yield b'data: {"id":'
             yield b' 4}\n\nignored'
     result=run(lambda req: httpx.Response(200, headers={'content-type':'text/event-stream'}, stream=Split()))
+    assert type(result.body) is bytes
     assert result.body == b'data: {"id": 4}\n\n'
+
+
+def test_actual_long_running_loopback_sse_returns_real_bytes_before_eof():
+    """Regression: HTTPX receives event while actual server is still sleeping."""
+    from http.server import ThreadingHTTPServer
+    from pathlib import Path
+    import runpy
+    import threading
+    import time
+    handler = runpy.run_path(str(Path(__file__).parent / 'fixtures' / 'docker_smoke_site.py'))['Handler']
+    server = ThreadingHTTPServer(('127.0.0.1', 0), handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        begin = time.monotonic()
+        result = asyncio.run(sample_sse(f'http://127.0.0.1:{server.server_port}/api/stream'))
+        assert result is not None and result.status == 200
+        assert type(result.body) is bytes
+        assert b'data: {"id": 3' in result.body
+        assert time.monotonic() - begin < 3.0
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)

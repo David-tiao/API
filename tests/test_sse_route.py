@@ -21,6 +21,7 @@ class Route:
         self.aborted = True
 
     async def fulfill(self, **kwargs):
+        assert type(kwargs.get('body')) is bytes, 'Playwright requires bytes, not bytearray'
         self.fulfilled = kwargs
 
 

@@ -21,7 +21,6 @@ class SseSample:
 
 def _first_complete_message(buffer: bytes) -> bytes | None:
     """Return prefix through the first complete `data:` event, not comments."""
-    normalized = buffer.replace(b"\r\n", b"\n")
     # Keep offsets in the *original* bytes rather than returning normalized text.
     # Both CRLF and LF are supported as complete SSE frame separators.
     offset = 0
@@ -34,7 +33,7 @@ def _first_complete_message(buffer: bytes) -> bytes | None:
         pos, size = min(choices)
         frame = buffer[offset:pos].replace(b"\r\n", b"\n")
         if any(line.startswith(b"data:") for line in frame.split(b"\n")):
-            return buffer[:pos + size]
+            return bytes(buffer[:pos + size])
         offset = pos + size
     return None
 
