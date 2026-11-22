@@ -24,3 +24,6 @@
 
 
 - **V16** 新增 `test_crawler_redirect_scope.py` 四项 HTTPX 重定向安全回归；`test_docker_smoke_fixture.py` 扩展到 SPA、SSR、302 共 3 项。真实 Docker 四轮安全验收见 V16 文档及 GitHub Actions 日志。
+
+
+- **V17** `test_sse_sampling.py` 新增 11 项 HTTPX MockTransport 有界真实帧、重定向/超时/大小/注释判断；`test_sse_route.py` 新增 6 项浏览器 SSE 路由与限流/作用域测试；`test_docker_smoke_fixture.py` 添加一项 20 秒未关闭的真实 SSE fixture 检查。CI 由四轮拓展为 SPA/SSR/SSE 各两轮，检查最终结果和对方真实访问日志。本地 SSE 和合成 HTTP fixture 合计 15 项通过，完整精确提交以 Actions 结果为准。

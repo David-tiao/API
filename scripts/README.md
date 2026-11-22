@@ -24,3 +24,6 @@ V10 没有移动现有 Shell 脚本，避免历史 Ubuntu 命令失效。
 
 
 **V16** `ci_docker_smoke.sh` 扩展为 SPA、SSR 各两次真实容器运行；隔离网络额外启动未授权合成站点并检查其接收日志，避免单纯信任扫描器自报的 R5 阻断行为。只清理自己创建的网络与容器。
+
+
+**V17 SSE 合成验收**：`ci_docker_smoke.sh` 在原 SPA/SSR 各两轮外，再执行两轮 `/sse`：fixture 的 `/api/stream` 发出真实事件后保持流开启 20 秒，测试 `DynamicAnalyzer` 是否能在 5 秒窗口内有界采样、给出经过 HAR/JSONL 校验的真正事件源端点。仍保留未授权 Host 接收端零越界和逐轮 Schema 断言。没有使用真实外站或账号。

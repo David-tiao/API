@@ -217,3 +217,12 @@ V15 只有允许 GET 的正向测试，并没有真实证明跨域页面资源�
 ### V16 闭环验证（实际 Docker）
 
 用同一个合成站点测试前后对照：修复前 `offscope` 服务端接收两条越界 302 请求；修复后 GitHub Actions run [45017605857](https://github.com/David-tiao/API/actions/runs/45017605857) 在四轮 Chromium 执行后确认无禁止访问，并完成 150 项 pytest、4/4 Schema 和 HAR/日志校验。修复证明是**本合成环境中 R5 负向用例通过**，不能扩大为所有场站或流式 API 的完整安全认证。后续重点是恢复流式 SSE 和合法重定向可用性，不能以安全测试变绿为由忽视功能回归。
+
+
+## 20. V17：SSE 长连接不能交给完整响应缓冲器
+
+**问题**：V16 的安全修复要用 `route.fetch(max_redirects=0)` 先得到整个响应再返回给浏览器。真实 SSE 常常无 EOF，这个 API 会等待到超时。不能为兼容 SSE 而恢复可能越界的 `route.continue_()`。
+
+**解决**：单独 `sse_sampling.py` 使用 HTTPX 流式读取并禁用任何 3xx 自动跳转；仅在 ScopeGuard/RequestGate 允许的 GET 上执行。最多 32 KiB/5 秒/3 次相同 URL 采样，只有真实完整 `data:` 帧才可返回给 Playwright；拒绝仅注释心跳、HTML/JSON 伪装、错误/跳转、超时和巨型事件。不写入真实事件数据文件；HAR/JSONL 由后续 Playwright 的响应事件处理器给出，供 EvidenceAuditor 审计。
+
+**测试依据**：11 项纯 HTTPX MockTransport SSE 测试加 4 项真实 loopback 合成 HTTP fixture 测试本地通过；模拟 route 适配的新增 6 项及 Docker 六轮将在 GitHub 精确提交中验证。不能说本地测试就是完整 S5 兼容性。

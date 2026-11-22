@@ -4,6 +4,7 @@ All endpoints and the out-of-scope host are synthetic; no external network neede
 """
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import time
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -46,6 +47,28 @@ class Handler(BaseHTTPRequestHandler):
             status, typ, body = 200, 'application/json', json.dumps({
                 'items': [{'id': 2, 'name': 'ssr-synthetic'}], 'source': 'offline-ssr'
             }).encode()
+        elif path == '/sse':
+            status, typ, body = 200, 'text/html; charset=utf-8', (
+                '<!doctype html><html><head><title>Offline SSE fixture</title></head>'
+                '<body><h1>Server event exercise</h1><script src="/sse-app.js"></script></body></html>'
+            ).encode()
+        elif path == '/sse-app.js':
+            status, typ, body = 200, 'application/javascript; charset=utf-8', (
+                'window.streamSample=null;'
+                'const stream=new EventSource("/api/stream");'
+                'stream.onmessage=(ev)=>{window.streamSample=JSON.parse(ev.data);stream.close();};'
+            ).encode()
+        elif path == '/api/stream':
+            # A genuine, deliberately long-lived stream; Route.fetch() cannot
+            # collect the entire body. V17 must sample an authentic first event.
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/event-stream; charset=utf-8')
+            self.send_header('Cache-Control', 'no-cache')
+            self.end_headers()
+            self.wfile.write(b'data: {"id": 3, "kind": "synthetic-sse"}\n\n')
+            self.wfile.flush()
+            time.sleep(20)
+            return
         elif path == '/redirect-offscope':
             # The crawler and browser must refuse the second-hop destination.
             self.send_response(302)

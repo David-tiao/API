@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# CI-only: four real Chromium runs across SPA and SSR fixtures, no external site.
+# CI-only: six Chromium runs across SPA, SSR and true long-lived SSE; no external site.
 # A separate synthetic out-of-scope container confirms denied requests have no side effect.
 set -Eeuo pipefail
 umask 077
@@ -45,10 +45,11 @@ assert opener.open("http://127.0.0.1:8765/", timeout=2).status == 200
 done
 
 printf '%s\n' '{"site_id":"ci-synthetic","allowed_hosts":["fixture"],"credentials":[],"headers":{}}' > "$tmp/site.json"
-for scenario in spa ssr; do
+for scenario in spa ssr sse; do
   case "$scenario" in
     spa) TARGET='http://fixture:8765/'; EXPECTED='/api/items' ;;
     ssr) TARGET='http://fixture:8765/ssr'; EXPECTED='/api/ssr-items' ;;
+    sse) TARGET='http://fixture:8765/sse'; EXPECTED='/api/stream' ;;
   esac
   for n in 1 2; do
     out="$tmp/$scenario-run-$n"
@@ -94,6 +95,12 @@ assert len(eps) == 1, f'Expected exactly one real API in {scenario}, got {eps}'
 ep = eps[0]
 assert (ep['method'], ep['host'], ep['path']) == ('GET', 'fixture', expected), ep
 assert ep['evidence'], 'API has no evidence'
+if scenario == 'sse':
+    assert ep.get('response', {}).get('content_type', '').startswith('text/event-stream'), (
+        'SSE result must be backed by actual stream response headers')
+    assert any(r.get('resource_type') == 'eventsource' and
+               r.get('method') == 'GET' and r.get('status') == 200
+               for r in rows), 'SSE was not observed as a browser EventSource request'
 hars = [ev for ev in ep['evidence'] if ev['type'] == 'har']
 assert hars, 'Static-only API incorrectly promoted to official result'
 for ev in hars:
@@ -142,4 +149,4 @@ if docker logs "$offscope" 2>&1 | grep -E 'GET /forbidden-(resource|redirect)'; 
   exit 1
 fi
 echo 'Out-of-scope container saw no forbidden requests: PASS'
-echo 'V16 isolated Docker acceptance PASS: SPA and SSR, 2 independent runs each'
+echo 'V17 isolated Docker acceptance PASS: SPA, SSR and SSE, 2 independent runs each'

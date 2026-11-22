@@ -4,7 +4,7 @@
 
 > 项目：[David-tiao/API](https://github.com/David-tiao/API) · 选题 B：前端 API 提取工具  
 > 记录日期：2026-11-22（Asia/Singapore）  
-> **说明**：以下“V0～V16”是便于理解的**开发迭代阶段编号**，不是正式 Git Tag 或发布版本号。当前 `pyproject.toml` 中的软件版本仍为 `0.1.0`，不要把阶段编号当作发行版本。
+> **说明**：以下“V0～V17”是便于理解的**开发迭代阶段编号**，不是正式 Git Tag 或发布版本号。当前 `pyproject.toml` 中的软件版本仍为 `0.1.0`，不要把阶段编号当作发行版本。
 
 ## 验收快照：V10（2026-11-22，非功能版本）
 
@@ -23,6 +23,18 @@
 代码基线 `466dde4019d20da5a6deff52f4dc227b11f68ec7` 首轮 GitHub Actions [运行记录](https://github.com/David-tiao/API/actions/runs/45011683183) 已完成，两个 Job 均成功：**全仓库 pytest 137 项通过**；Docker 原构建 **28 秒**、镜像大小 **2,864,215,392 字节**；internal Docker 网络中的真实 Chromium 两轮分别发现 **1 条**合成 GET API，集合一致。最新增量加强独立 JSON Schema/HAR/日志对齐及所有 main 提交的 CI 触发，等新流水线结束再认定最新版通过。
 
 这只是自建模拟站点基础验收，非 S1～S5 官方隐藏站点、真实网络越界审计或历史保密清理的最终验收。详见 [V15 验收记录](ACCEPTANCE_V15_2026-11-22.md)。
+
+## V17：真实 SSE 流的有界观察与跨域安全隔离（2026-11-22）
+
+**新增模块**：`api_extractor/sse_sampling.py`、`tests/test_sse_sampling.py`、`tests/test_sse_route.py`。调整 `dynamic_analysis.py`、合成服务端及 `ci_docker_smoke.sh`。保留正式 CLI、Schema 和 Dockerfile。
+
+**背景**：V16 通过禁用 Playwright 的自动重定向修复了真实 R5 越界，但 `route.fetch() → route.fulfill()` 会等待完整响应，碰到长期保持开启的 SSE（`text/event-stream`）可能超时，影响 S5 覆盖。直接让 SSE 走 `route.continue_()` 又可能重新引入自动跳转绕过 R5，因此没有采用。
+
+**实现**：浏览器识别 `resource_type=eventsource` 后进入单独安全路径。先执行 `ScopeGuard`，仅允许 GET，之后通过**同一个 RequestGate** 获得 RPS/并发许可。HTTPX `AsyncClient.stream()` 使用 `follow_redirects=False`，不携带 Cookie/账户凭据和自定义站点 Header，只发送基础 SSE Accept/UA；**最多读取 32 KiB、最多等待 5 秒、同 URL 最多 3 次连接**。从真实 HTTP 响应按帧寻找首个含 `data:` 的完整事件，只将原始已收到的字节经 `route.fulfill` 返回给页面，绝不伪造事件、状态或实际 HTTP 请求证据。302/非 200/非 SSE/无完整事件均 fail-closed；持续流始终不会要求等待 EOF。普通 HTTP 仍保留 V16 每一跳 ScopeGuard 检查。
+
+**测试**：本地精确 SSE 采样模块的 11 项 MockTransport 单元测试与扩充后本地 HTTP fixture 的 4 项测试，合计 **15 项通过**，Bash/Python 语法检查通过。另新增 6 项浏览器 SSE 路由适配测试；它们及整个 GitHub 同一提交仓库测试需要 GitHub Actions 完整执行后才能算通过。CI 新增第三个真实浏览器场景：服务器发送一次真实 SSE 数据后保持连接 20 秒；SPA、SSR、SSE 各两轮，总计**六轮真实 Chromium**，逐轮验证 Schema、HAR/JSONL 和双轮稳定性，并检查独立未授权容器没有收到跨域请求。
+
+**局限**：本模块是**首条真实事件的有界采样**，不是无限实时 SSE 代理，也不承诺多事件订阅、跨会话重放或认证 SSE。受控截断后的 EventSource 可能重连，因此对同 URL 强制限次；部分 SSE 业务语义不完整。合法 POST 登录跳转、HTTPS 协议变更、大 HTTP 响应仍采用 V16 保守路径，待未来专项设计；不能把 V17 合成场景通过称作 S1～S5 正式 PASS。详见 [V17 验收记录](ACCEPTANCE_V17_2026-11-22.md)。
 
 ## V16 · SSR 表单与跨域重定向的真实负向验收（2026-11-22）
 

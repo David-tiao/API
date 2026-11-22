@@ -77,3 +77,21 @@ def test_ssr_redirect_points_outside_scope_without_following():
         server.shutdown()
         thread.join(timeout=3)
         server.server_close()
+
+
+def test_long_lived_sse_fixture_emits_real_event_headers_without_waiting_for_eof():
+    server, thread = _fixture_server()
+    try:
+        base = f"http://127.0.0.1:{server.server_port}"
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        with opener.open(base + "/sse", timeout=3) as r:
+            assert 'sse-app.js' in r.read().decode()
+        with opener.open(base + "/sse-app.js", timeout=3) as r:
+            assert 'new EventSource("/api/stream")' in r.read().decode()
+        with opener.open(base + "/api/stream", timeout=3) as r:
+            assert r.status == 200 and r.headers['Content-Type'].startswith('text/event-stream')
+            assert r.readline().startswith(b'data: {"id": 3,')
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=3)

@@ -365,3 +365,10 @@ GitHub CI 合成环境由 SPA 扩展到 SPA+SSR 双场景，各运行两次。SS
 
 
 **V16 真实验收补充**：[GitHub Actions 安全复验](https://github.com/David-tiao/API/actions/runs/45017605857)：150 项 pytest 通过；Docker 构建 26 秒、镜像约 2.86 GB；四轮真实 Chromium（SPA×2、SSR×2）及 4/4 独立 Schema 与 HAR/日志核验通过；独立越界模拟服务器本轮未收到禁止请求。此前 302 漏洞的修复在当前合成环境得到闭环证明。**仍待验证**：SSE 流、跨协议/非 GET 重定向以及正式代理和隐藏站点测试。
+
+
+## 25. V17：长期 SSE 流的安全有界观察
+
+V16 的逐跳安全 HTTP 路由对长期未结束的 SSE 流可能等待到超时。新增独立 `sse_sampling.py`，识别 Chromium 的 `eventsource` 请求，继续使用 ScopeGuard 与共享 RequestGate；用禁止重定向的 HTTPX 流式连接读取**真实首个完整 SSE 数据事件**（最多 32 KiB、5 秒、同 URL 3 次），再转发原始事件字节给浏览器，不制造虚构事件、HTTP 状态或请求证据。不会发送认证 Cookie/配置凭据，也不能承担持续多事件流代理。
+
+在 CI 增加真实延迟关闭的 SSE 合成服务端；SPA、SSR、SSE 各两轮，分别检验非空 API、HAR/JSONL、独立 Schema 和未授权服务接收端未遭访问。设计依据、测试与残留兼容性风险详见 [V17 验收](docs/ACCEPTANCE_V17_2026-11-22.md)；真正结果以当前 GitHub Actions 运行状态为准。正式 S1～S5 隐藏分数仍未验证。

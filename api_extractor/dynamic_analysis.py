@@ -4,6 +4,7 @@ import asyncio
 import json
 import os
 import re
+import httpx
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit
@@ -14,6 +15,7 @@ from .config import SiteConfig
 from .jsonl_logger import JsonlLogger, redact_url
 from .request_control import RequestGate
 from .scope import ScopeGuard
+from .sse_sampling import sample_sse
 
 
 def _proxy_config() -> dict | None:
@@ -52,7 +54,9 @@ class BrowserRequestLimiter:
 
 
 class DynamicAnalyzer:
-    def __init__(self, target: str, config: SiteConfig, guard: ScopeGuard, gate: RequestGate, logger: JsonlLogger, out_dir: Path):
+    def __init__(self, target: str, config: SiteConfig, guard: ScopeGuard, gate: RequestGate, logger: JsonlLogger, out_dir: Path, *, sse_transport: httpx.AsyncBaseTransport | None = None):
+        self._sse_transport = sse_transport
+        self._sse_attempts: dict[str, int] = {}
         self.target = target
         self.config = config
         self.guard = guard
@@ -118,6 +122,57 @@ class DynamicAnalyzer:
             self._limiter.after(connection_id)
             raise
 
+    async def _route_sse(self, route) -> None:
+        """Observe bounded real SSE events without buffering an endless stream.
+
+        HTTPX does not follow redirects; only authentic data from a scoped GET
+        is relayed. Browser route.fetch would wait for the entire stream body.
+        """
+        request = route.request
+        if request.method.upper() != "GET" or not self.guard.is_allowed(request.url):
+            await route.abort("blockedbyclient")
+            return
+        previous = self._sse_attempts.get(request.url, 0)
+        if previous >= 3:
+            self.logger.write("-", request.url, 0, "verify", note="sse_reconnect_limit")
+            await route.abort("blockedbyclient")
+            return
+        self._sse_attempts[request.url] = previous + 1
+
+        request_id = id(request)
+        acquired = False
+        try:
+            await self._limiter.before(request_id)
+            acquired = True
+            sample = await sample_sse(request.url, transport=self._sse_transport)
+            if sample is None:
+                self.logger.write("-", request.url, 0, "verify",
+                                  note="sse_sample_unavailable")
+                await route.abort("blockedbyclient")
+                return
+            # Body is copied directly from the true upstream event, not
+            # fabricated or persisted. HAR/logs remain generated from browser
+            # response events and never include the SSE event payload.
+            await route.fulfill(status=sample.status, body=sample.body,
+                                headers={"content-type": "text/event-stream",
+                                         "cache-control": "no-cache"})
+        except asyncio.CancelledError:
+            try:
+                await route.abort()
+            except Exception:
+                pass
+            raise
+        except Exception as exc:
+            self.logger.write("-", request.url, 0, "verify",
+                              note=f"sse_sample_error:{type(exc).__name__}")
+            try:
+                await route.abort()
+            except Exception:
+                pass
+        finally:
+            if acquired:
+                self._limiter.after(request_id)
+
     async def _route_http(self, route) -> None:
         """Enforce scope on each redirect before any next-hop network request.
 
@@ -126,6 +181,9 @@ class DynamicAnalyzer:
         each Location before requesting another URL. This is fail-closed.
         """
         request = route.request
+        if getattr(request, "resource_type", None) == "eventsource":
+            await self._route_sse(route)
+            return
         if not self.guard.is_allowed(request.url):
             await route.abort("blockedbyclient")
             return
