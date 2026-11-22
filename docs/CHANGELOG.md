@@ -2,7 +2,19 @@
 
 > 项目：[David-tiao/API](https://github.com/David-tiao/API) · 选题 B：前端 API 提取工具  
 > 记录日期：2026-11-22（Asia/Singapore）  
-> **说明**：以下“V0～V7”是便于理解的**开发迭代阶段编号**，不是正式 Git Tag 或发布版本号。当前 `pyproject.toml` 中的软件版本仍为 `0.1.0`，不要把阶段编号当作发行版本。
+> **说明**：以下“V0～V10”是便于理解的**开发迭代阶段编号**，不是正式 Git Tag 或发布版本号。当前 `pyproject.toml` 中的软件版本仍为 `0.1.0`，不要把阶段编号当作发行版本。
+
+## 最新迭代：V10 · 文件结构治理与候选映射分层（2026-11-22）
+
+**变化文件**：`api_extractor/pipeline.py`、新增 `api_extractor/candidates.py`、`tests/test_candidates.py`；新增文档导航、项目目录规范、ADR 与脚本/测试索引；历史 ZIP 和 Dockerfile 备份移至 `archive/legacy/`。
+
+**修复的设计问题**：根目录混放有效源码、旧版打包及 Dockerfile 备份；主流水线承担了过多直接字典映射；缺少正式模块边界、目录维护约定与文档导航。
+
+**采取的架构**：`pipeline` 管理预算和阶段，`candidates` 只把 HTML 表单与浏览器网络观察转换成候选，`normalization` 归一化，`evidence` 审计，`output` 负责最终 JSON Schema。保留 `api_extractor` 包路径和所有运行入口。旧归档移动时保留原来的 Git Blob SHA，避免历史资料丢失。
+
+**验证**：本次新纯函数及 `tests/test_candidates.py` 的 **8 项离线测试通过**，Python `compileall` 通过。原有完整 GitHub 分支测试、Docker/Chromium 和授权站点端到端均未重新执行，不宣称全部满足考核。原根目录归档路径变更是本轮唯一的历史文件路径兼容调整。
+
+**遗留约束**：考核清单推荐 `src/`，目前项目仍使用根目录 `api_extractor/`；未验证 Docker 之前不进行破坏性移包。见 [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) 和 [ADR-0001](adr/0001-compatibility-first.md)。
 
 ## 最新迭代：V9 · 日志脱敏与本轮证据关联（2026-11-22）
 
@@ -91,6 +103,7 @@ python -m compileall -q api_extractor
 | V7 | [`5659d284`](https://github.com/David-tiao/API/commit/5659d2846572f9e43ce353d25d5c267b16360139) | 正式记录架构、算法及迭代依据 | 工程文档 | 文字对照源码，不是运行测试 |
 | V8 | [`3e3193822`](https://github.com/David-tiao/API/commit/3e3193822ed8ae78ee353ece00becc133adb4659) | 失败状态显式报告、预算取消保留部分 API | 可靠性与 R2 适配 | 35 项离线测试；真实 Docker 待验收 |
 | V9 | [`7208a2b6b`](https://github.com/David-tiao/API/commit/7208a2b6be1391e373d4d1db9c93d51b85409e00) | URL 凭据脱敏、跨轮日志隔离、HAR 索引和状态匹配 | 安全与证据质量 | 本次 30 项针对性离线测试；未全仓库实测 |
+| V10 | 本次提交（见 Git 文件历史） | 归档旧版文件、抽离候选纯函数、文档规范化 | 架构整理 | 8 项定向离线测试；未完整回归 |
 
 以上提交按**实现顺序**排列。GitHub 原始提交时间统一以 Git 元数据为准；2026-11-21 UTC 的提交对应新加坡时间 2026-11-21 至 22 日。
 

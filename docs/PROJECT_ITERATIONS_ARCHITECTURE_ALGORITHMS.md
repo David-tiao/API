@@ -152,6 +152,12 @@ URL 日志在写入前统一去掉 userinfo 并隐藏敏感 Query 值。短键�
 
 详见 [CHANGELOG.md](CHANGELOG.md) 的 V9、[FIXES_AND_LESSONS.md](FIXES_AND_LESSONS.md) 的第 12 节。此次离线测试属于 **30 项针对性测试**，不得与此前 35 项测试相加来推断当前全仓库测试数。
 
+## 5.3 V10 候选适配层与结构治理
+
+在保持 `api_extractor/` 原包目录的前提下，将原来 `pipeline.py` 内的 HTML 表单与浏览器网络候选转换规则抽为独立 `candidates.py`：`from_html_forms()`、`from_network_records()`。两个函数只产生规范候选字典，保留动态请求 `status` 与 `request_index`，不自行访问网络、修改浏览器或写文件。后续仍由 `normalization.py` 统一去重推断，再由 `evidence.py` 校验证据。
+
+V10 结构变更包括 `archive/legacy/` 历史归档与 `docs/README.md` 导航；保持 `scripts/`、Dockerfile 与 CLI 不动。详见 [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)、[ADR-0001](adr/0001-compatibility-first.md)。本轮新模块 8 项离线单元测试通过；不能据此断言完整 Docker 通过。
+
 ## 6. 当前验证等级与未解决问题
 
 本轮不扫描真实网站、不运行 Docker/Chromium。隔离 Python 工作副本的离线测试和本地模拟 HTTP 夹具 **共 35 项通过**，Python `compileall` 及 Bash 语法检查通过。测试新增了证据文件缺失、路径穿越、越界 symlink、HAR 错索引、错 Method、日志缺失及 WS/GQL 映射等场景。

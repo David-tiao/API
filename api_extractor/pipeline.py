@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from .candidates import from_html_forms, from_network_records
 from .config import load_site_config
 from .crawler import ResourceCrawler
 from .dynamic_analysis import DynamicAnalyzer
@@ -85,14 +86,7 @@ async def run_pipeline(target: str, config_path: str, out_path: str, budget: int
                         candidates.extend(found)
                         chunks_to_fetch.extend(nested[:10])
 
-                form_candidates = []
-                for form in crawl.forms:
-                    form_candidates.append({
-                        "method": form["method"], "url": form["url"], "source": "html",
-                        "confidence": 0.58, "file": form["file"], "body_fields": [x["name"] for x in form["fields"]],
-                        "note": "Form submission endpoint inferred from HTML",
-                    })
-                candidates.extend(form_candidates)
+                candidates.extend(from_html_forms(crawl.forms))
 
                 dynamic = DynamicAnalyzer(target, config, guard, gate, logger, out_dir)
                 dynamic_records = await dynamic.run([page.url for page in crawl.pages] + crawl.links[:8])
@@ -112,18 +106,7 @@ async def run_pipeline(target: str, config_path: str, out_path: str, budget: int
                 if outcome == "completed":
                     outcome = "partial_browser_failure"
                 logger.write("-", target, 0, "verify", note=f"dynamic_phase_failed:{dynamic.failure_reason}")
-        for row in dynamic_records:
-            if row.get("resource_type") not in {"fetch", "xhr", "eventsource", "websocket"}:
-                continue
-            candidates.append({
-                "method": row.get("method") or row.get("http_method") or "GET",
-                "url": row["url"], "source": "dynamic", "confidence": 0.96,
-                "headers": row.get("headers") or {}, "post_data": row.get("post_data"),
-                "response_content_type": row.get("response_content_type"),
-                "response_fields": row.get("response_fields") or [],
-                "status": row.get("status"),
-                "request_index": row.get("request_index", 0), "note": row.get("note"),
-            })
+        candidates.extend(from_network_records(dynamic_records))
 
         # Every dynamic evidence reference points to the HAR created by the browser phase.
         if dynamic_records and not har_path.exists():

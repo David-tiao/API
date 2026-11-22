@@ -7,8 +7,11 @@ flowchart TD
     C --> D[HTML / Script / Form / Link collection]
     D --> E[Regex + Babel AST]
     D --> F[Playwright runtime capture]
+    D --> FORMS[HTML Forms]
     E --> G[Candidate API records]
-    F --> G
+    F --> ADAPT[Candidate adapters]
+    FORMS --> ADAPT
+    ADAPT --> G
     G --> H[Deduplication + path normalization]
     H --> I[Params / auth / response semantics]
     I --> J[Evidence validation]
@@ -23,6 +26,8 @@ flowchart TD
 - `crawler.py`: collects HTML, script bundles, stylesheets, forms and internal links.
 - `static_analysis.py` + `tools/js_ast_analyzer.cjs`: Babel AST and conservative regex fallback.
 - `dynamic_analysis.py`: Playwright Fetch/XHR/EventSource/WebSocket capture and sanitized HAR evidence.
+- `candidates.py`: pure HTML form / browser network observation conversion.
+- `evidence.py`: source and HAR/request-log consistency validation.
 - `normalization.py`: method/path deduplication, dynamic path normalization, parameter and auth inference.
 - `output.py`: validates and atomically writes the fixed result schema.
 

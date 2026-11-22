@@ -4,7 +4,7 @@
 
 本项目面向经授权的 Web 站点，自动采集前端资源、分析 JavaScript、观察浏览器运行时请求，并输出结构化 `result.json`、JSONL `tool.log` 与请求证据。
 
-> 本压缩包为 Linux 版本。压缩包内直接包含项目根目录文件；解压到 `/home/tao/API` 后，不会再多套一层 `api-extractor/` 目录。
+> GitHub 当前分支中的文本源码是项目权威版本；旧发行 ZIP 和 Dockerfile 备份已归档到 `archive/legacy/`，不要与最新代码混用。
 
 ## 1. 当前实现范围
 
@@ -26,26 +26,21 @@
 ## 2. 目录结构
 
 ```text
-/home/tao/API/
-├── api_extractor/             # Python 核心模块
-├── tools/                     # JavaScript AST 分析器
-├── scripts/
-│   ├── bootstrap_project_stage1_to_10.sh
-│   ├── start_extractor_stage8.sh
-│   └── validate_contract_stage10.sh
-├── tests/                     # 单元测试
-├── docs/                      # 架构文档
-├── examples/                  # 示例配置与结果
-├── demo/                      # 演示说明
-├── Dockerfile
-├── requirements.txt
-├── pyproject.toml
-├── package.json
-├── package-lock.json
-├── TOPIC
-├── README.md
-└── .gitignore
+API/
+├── api_extractor/     # Python 核心代码：采集、分析、候选、审计与输出
+├── tools/             # Node/Babel AST 分析
+├── scripts/           # 稳定启动/诊断/验收入口
+├── tests/             # pytest 测试
+├── docs/              # 导航、架构、版本和设计决策
+├── examples/  demo/   # 示例与演示
+├── archive/legacy/    # 历史 ZIP 与 Dockerfile 备份
+├── Dockerfile         # 当前唯一有效 Dockerfile
+├── requirements.txt / pyproject.toml
+├── package.json / package-lock.json
+└── README.md / TOPIC / .gitignore
 ```
+
+模块责任和为什么保持 `api_extractor/` 根目录结构，见 [项目结构规范](docs/PROJECT_STRUCTURE.md)。
 
 ## 3. Linux 环境要求
 
@@ -296,3 +291,10 @@ bash scripts/acceptance_stage10.sh https://你的授权站点/ ./site.json 180
 `JsonlLogger` 已强化 URL 账号密码、敏感 Query 值的遮蔽；证据审计只关联当前任务新增的 `tool.log` 行，且检查 HAR 的方法、主机、路径、请求索引与状态。输出 Schema、CLI 参数不变。详见 [V9 更迭记录](docs/CHANGELOG.md) 和 [修复经验](docs/FIXES_AND_LESSONS.md)。
 
 离线验证为**本轮 30 项针对性测试通过**，不代表当前主分支所有测试、真实 Chromium、Docker 或隐藏站点已验收。
+
+
+## 18. V10：规范目录与职责边界
+
+旧版 ZIP 与 Dockerfile 备份已保留原始 Git 内容并移动至 [archive/legacy](archive/README.md)。从 `pipeline.py` 抽出了候选映射纯函数模块 `api_extractor/candidates.py`，新增 8 项定向离线测试并通过。保持了 CLI、Dockerfile、脚本与输出 Schema 路径。文档导航见 [docs/README.md](docs/README.md)，代码边界见 [PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md)，实际修改详情见 [CHANGELOG.md](docs/CHANGELOG.md)。
+
+本轮**未**重跑当前 GitHub 完整测试集、Docker 或真实 Chromium；严格 `src/` 布局目前仍未迁移，原因见 [ADR-0001](docs/adr/0001-compatibility-first.md)。
