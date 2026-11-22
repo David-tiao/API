@@ -133,7 +133,9 @@ async def run_pipeline(target: str, config_path: str, out_path: str, budget: int
         # Remove candidates outside the exact configured scope before normalization.
         scoped = [c for c in candidates if guard.is_allowed(str(c.get("url") or ""))]
         endpoints = normalize_candidates(scoped)
-        endpoints, invalid_refs, dropped = audit_endpoints(endpoints, out_dir)
+        endpoints, invalid_refs, dropped = audit_endpoints(
+            endpoints, out_dir, log_start_offset=logger.start_offset
+        )
         if invalid_refs or dropped:
             logger.write("-", target, 0, "verify", note=(
                 f"evidence_audit:invalid_references={invalid_refs},dropped_endpoints={dropped}"
@@ -145,7 +147,7 @@ async def run_pipeline(target: str, config_path: str, out_path: str, budget: int
             exit_code = 1
             outcome = "failed"
     except Exception as exc:
-        logger.write("-", target, 0, "verify", note=f"pipeline_error:{type(exc).__name__}:{str(exc)[:180]}")
+        logger.write("-", target, 0, "verify", note=f"pipeline_error:{type(exc).__name__}")
         endpoints = []
         exit_code = 1
         outcome = "failed"
@@ -154,7 +156,7 @@ async def run_pipeline(target: str, config_path: str, out_path: str, budget: int
             result = build_result(site_name, endpoints)
             write_result(destination, result)
         except Exception as exc:
-            logger.write("-", target, 0, "verify", note=f"output_validation_error:{type(exc).__name__}:{str(exc)[:180]}")
+            logger.write("-", target, 0, "verify", note=f"output_validation_error:{type(exc).__name__}")
             fallback = build_result(site_name, [])
             # Keep schema-valid fallback, but report the error to the caller.
             exit_code = 1

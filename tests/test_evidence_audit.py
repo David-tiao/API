@@ -35,10 +35,12 @@ def test_missing_file_traversal_and_symlink_are_dropped(tmp_path):
 def write_har(tmp_path, url="https://app.example.com/api/items", method="GET", kind="xhr", idx=0):
     p = tmp_path / "evidence" / "dynamic.har"
     p.parent.mkdir(exist_ok=True)
+    status = 101 if kind == "websocket" else 200
     p.write_text(json.dumps({"log": {"entries": [{"request": {
-        "method": method, "url": url}, "_resourceType": kind, "_requestIndex": idx}]}}))
+        "method": method, "url": url}, "response": {"status": status},
+        "_resourceType": kind, "_requestIndex": idx}]}}))
     (tmp_path / "tool.log").write_text(json.dumps({"method": method, "url": url,
-        "phase": "dynamic", "status": 200}) + "\n")
+        "phase": "dynamic", "status": status, "request_index": idx}) + "\n")
     return {"type": "har", "file": "evidence/dynamic.har", "request_index": idx}
 
 
