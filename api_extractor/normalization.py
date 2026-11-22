@@ -229,7 +229,7 @@ def normalize_candidates(candidates: list[dict]) -> list[dict]:
         if key in merged:
             merged[key]["auth"] = "sign"
             merged[key]["note"] = (
-                f"{merged[key][\u0027note\u0027]} | Signing fields observed: "
+                f"{merged[key]['note']} | Signing fields observed: "
                 + ", ".join(sorted(fields)[:12])
                 + " (algorithm not reconstructed)"
             )
