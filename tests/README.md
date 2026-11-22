@@ -30,3 +30,6 @@
 
 
 - **V18** `test_redirect_policy.py`（24 项纯规则参数化测试）与 `test_browser_auth_redirect.py`（8 项假 Playwright 路由测试）：合法 POST 302/303→GET、清除敏感 Header 和 Body、拒绝 307 POST 重放/HTTP 降级/跨域与不同端口、核对真实首跳状态；合成站 fixture 多一项 session cookie + 303 测试。GitHub Actions 将额外运行八轮真实 Chromium（SPA、SSR、SSE、Login 各两次）；精确结果见 V18 报告。
+
+
+**V18 实际 GitHub 回归**：三轮结果分别为 200 passed/2 failed（旧断言）、202 passed/登录文档 POST 检查口径错误、最终 [Actions](https://github.com/David-tiao/API/actions/runs/45021419911) **202 passed in 6.60s**。最终八轮容器各自通过独立 JSON Schema 与 HAR/日志校验，模拟 Cookie 登录两轮均发现私有 GET API，保留所有跨域阻断和未知 POST 禁止用例。

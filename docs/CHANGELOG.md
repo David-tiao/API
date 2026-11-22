@@ -405,3 +405,12 @@ V16 首次 GitHub Actions [运行记录](https://github.com/David-tiao/API/actio
 ### V18 CI 第二轮：HTML document POST 的实际日志分层
 
 [运行结果](https://github.com/David-tiao/API/actions/runs/45021191967)：全仓库 202 项通过；SPA/SSR/SSE 六轮 Docker 成功，但 Login 的验收脚本将 HTML 表单 `document` 提交误要求为动态 API 的 `phase=dynamic`。实际 POST 303 应由逐跳网络日志 `phase=redirect` 证明；已改为接受动态或逐跳相位，但仍强制 URL 仅为 `/api/session`、**真正的 303 及后续 200**、完整 Cookie 私有 GET 及 HAR/Schema 核对。继续由真实 Docker 决定最终 PASS/FAIL。
+
+
+### V18 完成验收：带 Cookie 的安全登录跳转通过八轮 Docker
+
+最终代码 `fe9e8fc96e98a7784fac363e15d5820ff220a196` 的 [Actions](https://github.com/David-tiao/API/actions/runs/45021419911) 已 **completed/success**：202 项完整 pytest 通过、35 秒 Docker 构建、镜像 2,864,233,591 字节。SPA/SSR/SSE/登录四场景各两轮，**8/8 独立 JSON Schema、HAR/日志核对通过**，模拟未授权服务端零禁止请求。真实表单 POST `/api/session` 返回 303，后续 GET `/dashboard` 200，已有会话 Cookie 的 `GET /api/private` 为 200；认证接口两轮均被识别，且 POST 303 未伪造为最终 200。
+
+本轮先后暴露并纠正了两个**验收测试口径缺陷**：旧版“绝对禁止 POST 302 和 HTTP→HTTPS”断言不符合 V18 新的受控条件；表单 `document` POST 不属于 `fetch/xhr` API 观测类别，应由真正 `redirect` 请求日志证明。失败→修正→成功日志全部保留在 [V18 验收记录](ACCEPTANCE_V18_2026-11-22.md)。
+
+**仍待验证**：HTTPS 证书/TLS 的真实升级、跨域 SSO/复杂登录、系统级代理和文件边界、正式隐藏站点 R6 重放。通过的是合成 Docker 安全登录场景，不等于完整正式合格。

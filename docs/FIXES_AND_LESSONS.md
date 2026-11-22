@@ -240,3 +240,10 @@ V15 只有允许 GET 的正向测试，并没有真实证明跨域页面资源�
 **修复**：独立 `redirect_policy.py` 纯函数判断下一跳。仅同主机、同协议、同有效端口的 301/302/303 POST 登录形式允许转换成 GET；显式清除 POST Body 和敏感请求 Header。禁止 PUT/PATCH/DELETE 和 POST 的 307/308 重放、HTTPS 降级与越界；GET HTTP→HTTPS 同 Host 可以进入下一跳，但真实 TLS 仍待专项验证。每次 fetch 均 `max_redirects=0`，RPS 单独计数，避免绕开浏览器拦截或信号量死锁。首跳真实 303 记录在动态 HAR/日志，后续 GET 记录在 redirect 阶段，不凭空增添业务请求。
 
 **验收**：新规则与真实 loopback fixture 本地 29 项通过，GitHub 精确提交全量 pytest 与四场景八轮 Docker 验证待 Actions 实际返回。若登录无法保留 Cookie，应修复网络传递而不是伪造 200。
+
+
+### V18 完整闭环：实测 Cookie 登录，不能把测试相位误作业务真实性
+
+[GitHub Actions 成功版](https://github.com/David-tiao/API/actions/runs/45021419911) 以精确提交 `fe9e8fc9` 验证 202 项 pytest、八轮 Chromium 和八轮独立 Schema/HAR/日志；由自建站点的真正 POST 303 与会话 Cookie 取得私有 GET 200。我们保留了前两轮失败：重定向规则演进时旧的绝对拒绝断言应改成可证明安全条件的断言，而不是删除安全测试；HTML 表单提交属于 `document`，真实网络相位 `redirect` 中的 POST 303 才是应核对的证据。任何没有真实请求的行为都不能仅靠测试命名或内部计数升级为已验证接口。
+
+**长远局限**：真实 TLS/证书、跨域身份提供者与 OAuth、签名和 CSRF，以及公网/代理层重放能力仍需要单独证据。

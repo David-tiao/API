@@ -231,3 +231,8 @@ Browser RequestGate 对原请求占一个并发槽，每次下一跳通过 `thro
 ### V16：逐跳范围守卫
 
 原 `route.continue_()` 允许浏览器处理 302 后续跳转而不再次执行 Route Handler，V16 独立服务端日志确认了实质越界。新路径为 `Route.fetch(max_redirects=0) → 检查 Location → ScopeGuard → RequestGate.throttle → 下一跳 fetch`，单次浏览器请求持有原并发槽位，追加跳转只计额外 RPS，避免嵌套获取同一个信号量造成死锁。高风险方法和跨协议跳转 fail closed，最多七跳。这个策略牺牲部分流式/重定向兼容性，后续必须扩充 SSE 和认证场景的真实验收。
+
+
+### V18 登录重定向验证结果（补充）
+
+在真实 GitHub Runner 中，自建 Cookie 登录服务端的 `POST /api/session` 发出实际 303、`Set-Cookie`，经受控 GET `/dashboard` 后私有 API `GET /api/private` 获得真实 200，说明本模块的状态传递在该 Docker 环境可用。[Actions 验收](https://github.com/David-tiao/API/actions/runs/45021419911) 同时确认八轮 Schema/HAR/JSONL 核对与零越界。HTTP→HTTPS 同主机升级仍是规则与模拟层面的支持，不包含真实 TLS 信任链实测。
