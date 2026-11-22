@@ -18,6 +18,12 @@
 5. `scripts/ci_docker_smoke.sh`：登录场景除 `/api/private` 外，还必须找到有真实 HAR/日志对应证据的 `/api/annual-report`。保持双轮运行与禁止访问未授权接收端的检查。
 6. `.github/workflows/quality-gate.yml`：增加 Pull Request CI 触发，不再需要先把实验代码合并到 main 才能测试。
 
+## 本轮继续集成：日志阶段格式
+
+`api_extractor/jsonl_logger.py` 现在对外仅输出 `static`、`dynamic`、`verify`，同时用可选 `detail_phase` 记录内部 `redirect` 和 `probe`。真实的登录 POST→303 与后续 GET→200 仍是两条独立网络记录。`evidence.py` 只把实际有 HAR 的浏览器请求或明确批准的 GET 验证当作正式请求证据，不把重定向细节冒充 API 观察。`tests/test_log_phase_contract.py` 和现有回归断言、Docker 验收脚本已同步更新。
+
+此项修改尚须等待包含它的 GitHub Actions 执行完成。上一轮 209 项测试、8 次 Docker 运行对应更早的“仅登录后深层导航”提交，不应混写为当前日志变更已通过。
+
 ## 验收门槛
 
 - 当前分支全仓库 pytest 和语法检查通过。
@@ -30,6 +36,6 @@
 
 ## 仍未集成的内容
 
-此前本地交付的 V20–V27 离线补丁（日志阶段兼容、签名/GraphQL 增强、离线证据审计和整合器等）**尚未在本分支执行完整集成**，不得借用其中专项测试数量宣称 GitHub 最新代码已完成这些增强。
+此前本地交付的 V22–V27 离线补丁（日志阶段兼容、签名/GraphQL 增强、离线证据审计和整合器等）**尚未在本分支执行完整集成**，不得借用其中专项测试数量宣称 GitHub 最新代码已完成这些增强。
 
 正式交付尚需：逐项合入并回归 V20–V27、代理/DNS 范围审计、真实 TLS/SSO 兼容、S4/S5 授权场景覆盖率、数据安全与公开仓库历史材料审查，以及最终 Docker/Chromium 与陌生站点验证。
