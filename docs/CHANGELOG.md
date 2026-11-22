@@ -4,6 +4,10 @@
 > 记录日期：2026-11-22（Asia/Singapore）  
 > **说明**：以下“V0～V10”是便于理解的**开发迭代阶段编号**，不是正式 Git Tag 或发布版本号。当前 `pyproject.toml` 中的软件版本仍为 `0.1.0`，不要把阶段编号当作发行版本。
 
+## 验收快照：V10（2026-11-22，非功能版本）
+
+针对代码基线 `1774725441e`，新增 [V10 验收报告](ACCEPTANCE_V10_2026-11-22.md)。结果：V10 候选纯函数的 8 项当前 GitHub SHA 一致的测试通过；但 R5 注册域解析存在可复现越界风险，静态推断的 API 无法自然满足逐条请求日志与重放证明。完整 GitHub 当前全仓库测试、Docker 和隐藏站点未验证。**本次只更新文档，不修改业务代码；不视为 V11 版本发布。**
+
 ## 最新迭代：V10 · 文件结构治理与候选映射分层（2026-11-22）
 
 **变化文件**：`api_extractor/pipeline.py`、新增 `api_extractor/candidates.py`、`tests/test_candidates.py`；新增文档导航、项目目录规范、ADR 与脚本/测试索引；历史 ZIP 和 Dockerfile 备份移至 `archive/legacy/`。
