@@ -303,10 +303,3 @@ bash scripts/acceptance_stage10.sh https://你的授权站点/ ./site.json 180
 ## 19. V11：安全作用域与 WebSocket 全局门控
 
 已经对 `ScopeGuard` 的 R5 公共后缀判定做 fail-closed 修复，并使 WebSocket 连接纳入共享 RequestGate。变更目的、代码与 19 项专项离线测试见 [docs/CHANGELOG.md](docs/CHANGELOG.md)（V11），最新验收边界见 [docs/ACCEPTANCE_V11_2026-11-22.md](docs/ACCEPTANCE_V11_2026-11-22.md)。**没有重新运行真实 Docker/Chromium；R6 静态 API 的真实请求证据仍是待办**。保持原 CLI、Schema 和项目软件版本 `0.1.0` 不变。
-
-
-## 20. V12：正式接口与静态候选分开输出
-
-**行为变化**：`result.json` 只输出具有已核验 HAR + 本轮请求日志支持的接口；仅在 JS/HTML 中出现、尚未真实请求过的线索保存在同目录 `static_candidates.json`，标记为未验证。不会为静态候选伪造请求日志，也不会为了补证据擅自调用未知的状态变更 API。固定 CLI、原 `result.schema.json` 和 Dockerfile 不变。
-
-本轮 50 项相关离线测试通过，但尚未重新运行 GitHub 最新完整检出版本、真实 Docker/Chromium 或接口重放。**这种精确率优先策略可能降低静态站点的覆盖率，不能保证最终评分更高。** 详细取舍见 [docs/CHANGELOG.md](docs/CHANGELOG.md)（V12）与 [V12 验收报告](docs/ACCEPTANCE_V12_2026-11-22.md)。

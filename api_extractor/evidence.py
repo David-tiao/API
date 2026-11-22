@@ -37,7 +37,12 @@ class EvidenceAuditor:
             for raw in source:
                 try:
                     row = json.loads(raw)
-                    if row.get("phase") != "dynamic":
+                    if row.get("phase") == "dynamic":
+                        pass
+                    elif (row.get("phase") == "probe" and
+                          row.get("resource_type") == "explicit_safe_get"):
+                        pass
+                    else:
                         continue
                     status = int(row.get("status", 0))
                     idx = row.get("request_index")

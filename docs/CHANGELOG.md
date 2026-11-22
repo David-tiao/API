@@ -2,42 +2,11 @@
 
 > 项目：[David-tiao/API](https://github.com/David-tiao/API) · 选题 B：前端 API 提取工具  
 > 记录日期：2026-11-22（Asia/Singapore）  
-> **说明**：以下“V0～V12”是便于理解的**开发迭代阶段编号**，不是正式 Git Tag 或发布版本号。当前 `pyproject.toml` 中的软件版本仍为 `0.1.0`，不要把阶段编号当作发行版本。
+> **说明**：以下“V0～V11”是便于理解的**开发迭代阶段编号**，不是正式 Git Tag 或发布版本号。当前 `pyproject.toml` 中的软件版本仍为 `0.1.0`，不要把阶段编号当作发行版本。
 
 ## 验收快照：V10（2026-11-22，非功能版本）
 
 针对代码基线 `1774725441e`，新增 [V10 验收报告](ACCEPTANCE_V10_2026-11-22.md)。结果：V10 候选纯函数的 8 项当前 GitHub SHA 一致的测试通过；但 R5 注册域解析存在可复现越界风险，静态推断的 API 无法自然满足逐条请求日志与重放证明。完整 GitHub 当前全仓库测试、Docker 和隐藏站点未验证。**本次只更新文档，不修改业务代码；不视为 V11 版本发布。**
-
-## 最新迭代：V12 · R6 请求证据强度分级（2026-11-22）
-
-**代码提交**：[`3efe6a3e2`](https://github.com/David-tiao/API/commit/3efe6a3e2f28d4b4cebbc9f224cfca39dced3bf9)  
-**代码文件**：`api_extractor/evidence.py`、`api_extractor/output.py`、`api_extractor/pipeline.py`；新增 `tests/test_evidence_policy.py`、`tests/test_r6_pipeline.py`；调整 `tests/test_run_outcomes.py` 与 `tests/test_integration_local_http.py`。
-
-### 要解决的具体问题
-
-V11 之前，只有 JS/HTML 源码位置的静态候选，经过文件存在性检查就可能进入正式 `result.json`。但《考核细则》第 3.6 节强调：正式输出的接口在 `tool.log` 中必须有可查验的真实请求证据，并抽查重放。**源码声明了 `fetch('/api/items')` 不等于程序实际上请求过后端。** 对这些候选写入虚构状态码无法满足考核，也可能违反规范。
-
-### 本次实现与数据流
-
-1. 仍完整执行静态分析及动态浏览器分析，先按照既有 `normalization.py` 去重，再由 `EvidenceAuditor` 验证源码文件及动态 HAR（方法、Host、Path、索引、响应状态及本轮请求日志）。
-2. **在审计后新增 `split_by_request_proof()` 分级**：拥有已经审计通过的 `har` 请求证据的端点进入正式 `result.json`；只有 `bundle/html` 证据的端点不再进入正式结果。
-3. **保留静态线索**：另写入 `/out/static_candidates.json`（本地模式为输出目录），明确标记 `kind=unverified_static_candidates`、`reason=no_observed_request`。只存 Method/Host/Path 和来源文件定位，不复制源码片段、请求 Header 或 Body。
-4. `tool.log` 增加 `request_proof_gate:confirmed=N,static_only=M` 汇总，但**不为静态候选伪造 HTTP 请求记录**。
-5. R2 保持固定 CLI、Schema 和正常返回 0 的要求；即使浏览器失败、没有已观察接口，仍可输出合法空清单，并在 `tool.log` 中记录 `run_status:partial_browser_failure`。真正的采集异常仍沿用非零退出码。
-6. 诊断 sidecar 原子覆盖，重复运行不会沿用上一轮静态候选。
-
-### 实测与适用范围
-
-在隔离 Python 工作副本中，新增的 8 项纯证据分级测试、4 项离线主流程集成测试，以及现有证据审计、规范化、候选映射、作用域、输出等 **50 项相关测试通过**；执行了 `python -m compileall -q api_extractor tests`。测试通过仅证明这些离线用例，**没有复现当前 GitHub 完整 checkout 全套 pytest，没有启动真实 Docker/Chromium，也没有通过组织方重放抽查**。
-
-### 代价与剩余问题（必须阅读）
-
-- **Precision / R6 改善，Recall 可能下降**：T1 静态可见但未实际触发的接口现在只在 `static_candidates.json`，不会计入正式结果。选题 B 的 Recall 权重为 40，不能将这项变化简单视为总分必然提高。
-- **R6 尚未验收完成**：HAR/日志一致不等于重放成功；运行时观察的接口可能依赖会话、签名或不可重放的业务状态。
-- **没有主动探测**：本轮不会盲目调用未知 POST/PUT/PATCH/DELETE，也没有为 GET 接口增加自动请求。后续如果要提高静态候选转正率，应只针对明确授权、确定安全的请求设计额外验证与预算限流。
-- 正式 Docker 镜像、R4/R5 代理审计、S1～S5 隐藏站点尚未实测，软件版本仍为 `0.1.0`。
-
-进一步的风险分析见 [V12 验收快照](ACCEPTANCE_V12_2026-11-22.md)。
 
 ## 最新迭代：V11 · R5 可注册域边界与 R4 WebSocket 全局限流（2026-11-22）
 
@@ -170,7 +139,6 @@ python -m compileall -q api_extractor
 | V9 | [`7208a2b6b`](https://github.com/David-tiao/API/commit/7208a2b6be1391e373d4d1db9c93d51b85409e00) | URL 凭据脱敏、跨轮日志隔离、HAR 索引和状态匹配 | 安全与证据质量 | 本次 30 项针对性离线测试；未全仓库实测 |
 | V10 | 本次提交（见 Git 文件历史） | 归档旧版文件、抽离候选纯函数、文档规范化 | 架构整理 | 8 项定向离线测试；未完整回归 |
 | V11 | [`951a50afd`](https://github.com/David-tiao/API/commit/951a50afd34561f0a36f67afb630a656905eb7c6) | PSL 域名边界与 WS 共享限流器 | R5/R4 安全修复 | 19 项定向测试；正式 Docker 未验收 |
-| V12 | [`3efe6a3e2`](https://github.com/David-tiao/API/commit/3efe6a3e2f28d4b4cebbc9f224cfca39dced3bf9) | request-backed 正式结果与静态待验证 sidecar | R6 证据分级 | 50 项相关离线测试，未做真实重放 |
 
 以上提交按**实现顺序**排列。GitHub 原始提交时间统一以 Git 元数据为准；2026-11-21 UTC 的提交对应新加坡时间 2026-11-21 至 22 日。
 

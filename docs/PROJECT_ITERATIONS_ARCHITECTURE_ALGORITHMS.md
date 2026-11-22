@@ -166,19 +166,6 @@ V10 结构变更包括 `archive/legacy/` 历史归档与 `docs/README.md` 导航
 
 **限制**：仅在单事件循环内保障代码门控，代理与浏览器真正发出的握手、服务端长连接和运行时 DNS 行为仍需外部网络审计。PSL 库在正式 Docker 中是否存在还需真实构建验证。详见 [V11 验收状态](ACCEPTANCE_V11_2026-11-22.md)。
 
-## 5.5 V12：证据强度分级与结果分流
-
-以前：`normalize_candidates → EvidenceAuditor → result.json`，静态证据和动态已观察请求使用同一种最终输出通道。
-
-现在：`normalize_candidates → EvidenceAuditor → split_by_request_proof → {result.json, static_candidates.json}`。证据审计先验证引用在文件系统内、HAR 索引与当前任务日志一致；分级器是**纯函数**，只看审核后的 `evidence` 是否包含 `type=har`。
-
-- **强证据（已观察）**：与本轮工具日志、HAR 互相核对，进入正式 `result.json`；可同时保留 HTML/JS 源码作为补充证据。
-- **弱证据（仅静态）**：只有 JS/HTML 声明，进入 `static_candidates.json` 用于人工复核、后续安全验证及调试，不参与正式评分输出。
-- **安全**：不自动发起新的请求，静态清单不复制敏感 JS 片段或认证 Header；保持 CLI 与组织方固定 Schema。
-- **代价**：当浏览器未触发 T1 静态接口时，会降低 Recall；另缺少真正的重放执行确认。这一设计优先使当前提交的可信程度与它宣称的证据等级一致。
-
-见 [V12 版本更迭](CHANGELOG.md) 和 [V12 验收快照](ACCEPTANCE_V12_2026-11-22.md)。
-
 ## 6. 当前验证等级与未解决问题
 
 本轮不扫描真实网站、不运行 Docker/Chromium。隔离 Python 工作副本的离线测试和本地模拟 HTTP 夹具 **共 35 项通过**，Python `compileall` 及 Bash 语法检查通过。测试新增了证据文件缺失、路径穿越、越界 symlink、HAR 错索引、错 Method、日志缺失及 WS/GQL 映射等场景。

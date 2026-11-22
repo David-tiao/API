@@ -133,7 +133,7 @@ def normalize_candidates(candidates: list[dict]) -> list[dict]:
     for candidate in candidates:
         # Failed/unfinished browser requests are not proof that an API exists.
         # Static candidates do not have an HTTP status by definition.
-        if candidate.get("source") == "dynamic":
+        if candidate.get("source") in {"dynamic", "verified_get"}:
             status = candidate.get("status")
             if status is not None:
                 try:
@@ -171,8 +171,8 @@ def normalize_candidates(candidates: list[dict]) -> list[dict]:
                 "loc": f"line {candidate.get('line')}" if candidate.get("line") else "captured from page markup",
                 "snippet": (candidate.get("snippet") or "")[:300],
             })
-        elif source == "dynamic":
-            evidence.append({"type": "har", "file": "evidence/dynamic.har", "request_index": int(candidate.get("request_index", 0))})
+        elif source in {"dynamic", "verified_get"}:
+            evidence.append({"type": "har", "file": candidate.get("evidence_file") or "evidence/dynamic.har", "request_index": int(candidate.get("request_index", 0))})
         if not evidence:
             continue
 

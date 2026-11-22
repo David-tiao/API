@@ -16,6 +16,7 @@ from .output import build_result, write_result, write_static_review
 from .request_control import RequestGate
 from .scope import ScopeGuard
 from .static_analysis import StaticAnalyzer
+from .verification import ExplicitGetVerifier
 
 
 def _validate_mount_paths(config_path: Path, out_path: Path) -> None:
@@ -54,6 +55,7 @@ async def run_pipeline(target: str, config_path: str, out_path: str, budget: int
     config = None
     dynamic_records: list[dict] = []
     dynamic: DynamicAnalyzer | None = None
+    prober: ExplicitGetVerifier | None = None
     har_path = out_dir / "evidence" / "dynamic.har"
     try:
         _validate_mount_paths(Path(config_path), destination)
@@ -64,7 +66,7 @@ async def run_pipeline(target: str, config_path: str, out_path: str, budget: int
         candidates: list[dict] = []
 
         async def stages():
-            nonlocal dynamic_records, dynamic
+            nonlocal dynamic_records, dynamic, prober
             async with ResourceCrawler(target, config, guard, gate, logger, out_dir) as crawler:
                 crawl = await crawler.crawl()
                 analyzer = StaticAnalyzer(project_root, out_dir, guard)
@@ -91,6 +93,8 @@ async def run_pipeline(target: str, config_path: str, out_path: str, budget: int
 
                 dynamic = DynamicAnalyzer(target, config, guard, gate, logger, out_dir)
                 dynamic_records = await dynamic.run([page.url for page in crawl.pages] + crawl.links[:8])
+                prober = ExplicitGetVerifier(config, guard, gate, logger, out_dir)
+                await prober.run(candidates)
 
         try:
             await asyncio.wait_for(stages(), timeout=max(0.1, float(budget) - min(3.0, budget * 0.2)))
@@ -108,6 +112,8 @@ async def run_pipeline(target: str, config_path: str, out_path: str, budget: int
                     outcome = "partial_browser_failure"
                 logger.write("-", target, 0, "verify", note=f"dynamic_phase_failed:{dynamic.failure_reason}")
         candidates.extend(from_network_records(dynamic_records))
+        if prober is not None:
+            candidates.extend(prober.records)
 
         # Every dynamic evidence reference points to the HAR created by the browser phase.
         if dynamic_records and not har_path.exists():
