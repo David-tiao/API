@@ -56,7 +56,7 @@ class Page:
         self.hrefs, self.fail = hrefs, fail
 
     def locator(self, selector):
-        assert selector == "a[href]"
+        assert selector == "a[href], a[routerlink], a[ng-reflect-router-link]"
         return Locator(self.hrefs, self.fail)
 
 
@@ -84,3 +84,47 @@ def test_anchor_with_query_is_kept_as_navigation_url():
     assert _safe_readonly_nav_url(
         "https://app.example.com/reports", "?year=2026#table", guard()
     ) == "https://app.example.com/reports?year=2026"
+
+
+def test_spa_hash_navigation_preserves_angular_route():
+    assert _safe_readonly_nav_url(
+        "https://app.example.com/", "#/search?q=apple", guard()
+    ) == "https://app.example.com/#/search?q=apple"
+    assert _safe_readonly_nav_url(
+        "https://app.example.com/dashboard", "/#/reports", guard()
+    ) == "https://app.example.com/#/reports"
+
+
+def test_read_only_collector_discovers_spa_routes_without_clicking():
+    result = asyncio.run(analyzer()._read_only_links(Page([
+        "#/search", "#/search", "/#/reports", "/#/logout",
+        "/#/checkout/payment", "/#//other-site.invalid/path",
+        "https://evil.example.net/#/search",
+    ])))
+    assert result == [
+        "https://app.example.com/dashboard#/search",
+        "https://app.example.com/#/reports",
+    ]
+
+
+def test_spa_fragment_dangerous_paths_and_queries_are_denied():
+    for href in (
+        "#/logout", "#/account/reset", "#/users/%64elete",
+        "#/users/%2564elete", "#/checkout/payment",
+        "#/manage?action=delete", "#/manage?command=REVOKE",
+        "#/signout", "#/terminate", "#//attacker.example.org/route",
+        "#/%2f/logout", "#/reports\\bad", "#/reports#nested",
+        "https://evil.example.org/#/search",
+    ):
+        assert _safe_readonly_nav_url(
+            "https://app.example.com/", href, guard()
+        ) is None, href
+
+
+def test_plain_fragment_is_not_considered_spa_navigation():
+    assert _safe_readonly_nav_url(
+        "https://app.example.com/", "#anchor", guard()
+    ) is None
+    assert _safe_readonly_nav_url(
+        "https://app.example.com/", "/reports#section", guard()
+    ) == "https://app.example.com/reports"
