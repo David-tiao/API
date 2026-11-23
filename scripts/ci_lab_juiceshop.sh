@@ -73,6 +73,18 @@ for n in 1 2; do
       tail -40 "$out/stdout.log" >&2 || :
       exit 1
     }
+  # Validate the actual published output schema, in a separate offline container.
+  docker run --rm --pull=never --network none --read-only \
+    -v "$out:/out:ro" --entrypoint python "$SCANNER_IMAGE" -c '
+import json
+from pathlib import Path
+from jsonschema import Draft202012Validator
+result = json.loads(Path("/out/result.json").read_text())
+schema = json.loads(Path("/app/api_extractor/result.schema.json").read_text())
+errors = list(Draft202012Validator(schema).iter_errors(result))
+assert not errors, "; ".join(error.message for error in errors[:3])
+print("Independent result.json schema PASS")
+'
 done
 
 mkdir -p "$GITHUB_WORKSPACE/lab-output"
