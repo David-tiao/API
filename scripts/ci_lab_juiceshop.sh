@@ -25,12 +25,12 @@ docker network create --internal "$net" >/dev/null
 docker run -d --pull=never --name "$app" --network "$net" \
   --network-alias juice-shop "$APP_IMAGE" >/dev/null
 ready=0
-for _ in $(seq 1 60); do
+for _ in $(seq 1 180); do
   if docker exec "$app" node -e '
 const http = require("node:http");
 const request = http.get("http://127.0.0.1:3000/", response => {
   response.resume();
-  process.exit(response.statusCode === 200 ? 0 : 1);
+  process.exit(response.statusCode >= 200 && response.statusCode < 400 ? 0 : 1);
 });
 request.on("error", () => process.exit(1));
 request.setTimeout(2000, () => process.exit(1));
@@ -40,6 +40,7 @@ done
 if [[ "$ready" != 1 ]]; then
   echo "Juice Shop lab did not become healthy" >&2
   docker logs "$app" 2>&1 | tail -35 >&2
+  docker inspect "$app" --format 'Container state: {{.State.Status}}' >&2 || :
   exit 1
 fi
 echo "Self-hosted Juice Shop ready: internal Docker network only."
