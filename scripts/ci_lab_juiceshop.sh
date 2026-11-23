@@ -7,7 +7,7 @@ command -v docker >/dev/null
 command -v python3 >/dev/null
 command -v timeout >/dev/null
 
-APP_IMAGE="bkimminich/juice-shop:latest"
+APP_IMAGE="bkimminich/juice-shop@sha256:adaf6a6ca50f772dff7d2fe56972c659e81a61e0dbbe607c2b39fefd436e6153"
 SCANNER_IMAGE="api-extractor-juice-lab:latest"
 tmp="$(mktemp -d)"
 net="juice-api-lab-$(date +%s)-$$"
