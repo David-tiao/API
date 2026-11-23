@@ -2,6 +2,7 @@
 
 | 目的 | 权威文档 |
 |---|---|
+| **零基础先读**：项目整体介绍、术语、文件夹含义、运行与输出详解 | [BEGINNER_GUIDE.md](BEGINNER_GUIDE.md) |
 | **浏览器加载的 Lazy JS Chunk** 静态 AST 二次分析及请求证据分层 | [ACCEPTANCE_RUNTIME_LAZY_CHUNKS_2026-11-23.md](ACCEPTANCE_RUNTIME_LAZY_CHUNKS_2026-11-23.md) |
 | **SPA Hash + Socket.IO** 受控路由发现、协议分类及双轮真实验证 | [ACCEPTANCE_SPA_SOCKETIO_2026-11-23.md](ACCEPTANCE_SPA_SOCKETIO_2026-11-23.md) |
 | **Juice Shop** 独立双轮真实容器验收、浏览器关闭修复与静态字典过滤 | [ACCEPTANCE_JUICE_SHOP_2026-11-23.md](ACCEPTANCE_JUICE_SHOP_2026-11-23.md) |
