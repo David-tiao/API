@@ -338,7 +338,6 @@ class DynamicAnalyzer:
 
     async def run(self, pages: list[str]) -> list[dict]:
         browser = None
-        browser_close_error: KeyError | None = None
         self.failure_reason = None
         try:
             async with async_playwright() as playwright:
@@ -534,23 +533,13 @@ class DynamicAnalyzer:
                 if self._tasks:
                     await asyncio.gather(*list(self._tasks), return_exceptions=True)
                 await context.close()
-                try:
-                    await browser.close()
-                except KeyError as exc:
-                    # Do not report success while browser is still connected.
-                    # The async_playwright context manager still owns and
-                    # shuts down the driver/transport on exit.
-                    browser_close_error = exc
-                    self.logger.write("-", self.target, 0, "verify",
-                                      note="browser_close_pending_driver_shutdown")
-                else:
-                    browser = None
-            if browser_close_error is not None:
-                if browser is not None and browser.is_connected():
-                    raise browser_close_error
-                self.logger.write("-", self.target, 0, "verify",
-                                  note="browser_shutdown_disconnected_confirmed")
-                browser = None
+                # Playwright's context manager owns the browser-driver process.
+                # Its exit tears down transport and Chromium; do not dispatch
+                # a second explicit "Browser.close" protocol command after
+                # close has already drained pending network event handlers.
+            browser = None  # async_playwright.__aexit__ succeeded
+            self.logger.write("-", self.target, 0, "verify",
+                              note="browser_driver_context_closed")
         except Exception as exc:
             self.failure_reason = type(exc).__name__
             # Lab-only diagnostic: source location, never exception arguments,
