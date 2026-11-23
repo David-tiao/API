@@ -91,7 +91,7 @@ records = [json.loads(line) for line in (out / "tool.log").read_text().splitline
 notes = [r.get("note") for r in records if isinstance(r.get("note"), str)]
 print("Run", n, "diagnosis:", "endpoints", len(result.get("endpoints", [])),
       "log lines", len(records), "last notes", notes[-15:])
-PY
+DIAG
   # Validate the actual published output schema, in a separate offline container.
   docker run --rm --pull=never --network none --read-only \
     -v "$out:/out:ro" --entrypoint python "$SCANNER_IMAGE" -c '
