@@ -1,389 +1,263 @@
-# API Extractor
+# 🎉 API Extractor — 完结撒花！🌸
 
-**TOPIC: B** — 前端 API 提取工具（API Extractor）
+**TOPIC: B · 前端 API 提取工具 · v0.1.0 · 工程开发阶段收官版（2026-11-23）**
 
-本项目面向经授权的 Web 站点，自动采集前端资源、分析 JavaScript、观察浏览器运行时请求，并输出结构化 `result.json`、JSONL `tool.log` 与请求证据。
+> 从网页里找接口，不只是“猜出一个 URL”，还要解释**从哪里发现、是否真正请求过、证据在哪里**。
+>
+> **项目状态：已合并到 `main`，工程功能与现有自动验收完成。** 这不代表已经通过组织方隐藏站点的正式评分或全部系统级安全审计。
 
-> **从零开始？** 先读 [项目零基础入门指南：概念解释和文件结构](docs/BEGINNER_GUIDE.md)，再按本文的安装与运行步骤操作。
+[📖 零基础入门教程](docs/BEGINNER_GUIDE.md) · [🗺️ 文档导航](docs/README.md) · [🧩 项目结构](docs/PROJECT_STRUCTURE.md) · [📜 迭代与修复记录](docs/CHANGELOG.md) · [✅ GitHub Actions](https://github.com/David-tiao/API/actions)
 
-> GitHub 当前分支中的文本源码是项目权威版本；旧发行 ZIP 和 Dockerfile 备份已归档到 `archive/legacy/`，不要与最新代码混用。
+## 🚀 30 秒认识这个项目
 
-## 1. 当前实现范围
+想象在购物网站搜索商品：浏览器会向服务器请求商品数据。这个请求所访问的地址，可能就是一个 **API**。
 
-| 计划阶段 | 当前实现 |
-|---|---|
-| 1. 项目初始化 | Python 工程、Node/Babel AST 分析器、依赖版本固定、测试和脚本 |
-| 2. 资源采集 | HTML、外部/内联 JS、样式表、表单和同站链接采集；有界抓取 |
-| 3. 静态分析 | Babel AST 分析 fetch/axios/XHR/请求封装、动态 import，并提供正则兜底 |
-| 4. 动态分析 | Playwright 捕获 Fetch/XHR/EventSource；有限页面遍历和基础账号密码表单登录 |
-| 5. 高级协议 | WebSocket 握手、SSE、GraphQL 请求识别 |
-| 6. API 整理 | 去重、数字/UUID/哈希路径归一化、参数、鉴权和响应字段分析 |
-| 7. 证据链 | JS/HTML 证据、脱敏 HAR、JSONL 请求日志和访问范围校验 |
-| 8. CLI 契约 | `--target`、`--config`、`--out`、`--budget`、非交互执行和 Schema 校验 |
-| 9. 测试 | 范围控制、路径归一化、鉴权和输出结构单元测试；真实练习站点仍需验证 |
-| 10. 工程交付 | Dockerfile、依赖文件、README、示例配置和 Linux 启动脚本 |
-
-这是一个可继续开发的集成版本，不代表所有边界情况均已解决。当前不会通用逆向任意加密签名算法，也不会自动处理任意业务流程、复杂 MFA、验证码或 SSO。
-
-## 2. 目录结构
+本项目只针对**自己部署或明确获授权的 Web 站点**，自动读取 HTML/JavaScript、在浏览器中观察真实 Fetch/XHR 等请求、收集接口线索，最后检查证据并输出结构化结果。简单理解为：
 
 ```text
-API/
-├── api_extractor/     # Python 核心代码：采集、分析、候选、审计与输出
-├── tools/             # Node/Babel AST 分析
-├── scripts/           # 稳定启动/诊断/验收入口
-├── tests/             # pytest 测试
-├── docs/              # 导航、架构、版本和设计决策
-├── examples/  demo/   # 示例与演示
-├── archive/legacy/    # 历史 ZIP 与 Dockerfile 备份
-├── Dockerfile         # 当前唯一有效 Dockerfile
-├── requirements.txt / pyproject.toml
-├── package.json / package-lock.json
-└── README.md / TOPIC / .gitignore
+提供授权站点 URL + 配置
+          │
+          ▼
+读取网页 / JavaScript ───→ 源码中的 API 线索
+          │
+          ▼
+Playwright 浏览器观察 ──→ 实际发出的网络请求
+          │
+          ▼
+规范化、去重、参数/鉴权推断
+          │
+          ▼
+HAR + tool.log + 源码证据核对
+          │
+          ├── result.json             有真实请求证据的正式结果
+          └── static_candidates.json  尚未请求过的静态线索
 ```
 
-模块责任和为什么保持 `api_extractor/` 根目录结构，见 [项目结构规范](docs/PROJECT_STRUCTURE.md)。
+**最重要的设计原则：** 代码里写了 `fetch("/api/example")`，并不等于浏览器真的访问过它；未经实际请求证明的候选**不能冒充已验证接口**。
 
-## 3. Linux 环境要求
+## ✅ 完结撒花：已经做到了什么？
 
-- Linux x86_64（建议 Ubuntu 22.04/24.04 或兼容发行版）
-- Python 3.11 或更新版本（仅本地虚拟环境模式需要；Docker 模式使用容器内 Python）
-- Node.js 与 npm
-- Git（可选，初始化脚本会在可用时初始化仓库）
-- Docker Engine（可选；使用 Docker 模式时需要）
-- Chromium 所需系统依赖（本地 Playwright 模式需要）
+以下是**可复核的工程验收**，不是官方隐藏考核成绩：
 
-Ubuntu/Debian 可先安装基础工具：
+| 项目 | 已验证结果 |
+|---|---|
+| 主分支 | 功能 PR #1、#2 均已合并至 `main` |
+| Python 全仓库测试 | **267 项通过** |
+| Docker + Chromium 合成验收 | **10/10**，覆盖 SPA、SPA Hash、SSR、SSE、模拟登录，各两轮 |
+| 访问范围检查 | 合成环境中，越界模拟接收端没有收到被禁止的请求 |
+| 独立 OWASP Juice Shop 练习环境 | 自行部署的隔离容器，两轮扫描均完整完成 |
+| Juice Shop 观察结果 | 每轮 **9 条有 HAR 证据的记录**、集合一致性 Jaccard = **1.0000** |
+| Socket.IO 分类 | 每轮的 **3/3 条传输记录**已标注；不能当作三条普通业务 REST API |
+
+**对应证据：** [主分支 CI（267 项测试及 10 次 Chromium 验收）](https://github.com/David-tiao/API/actions/runs/45138090536) · [Juice Shop 独立双轮验收](https://github.com/David-tiao/API/actions/runs/45133273791) · [详细实验记录](docs/ACCEPTANCE_SPA_SOCKETIO_2026-11-23.md)。
+
+Juice Shop 结果来自在自己的 Docker 内网运行的实例，**不是对 OWASP 公共演示站进行自动扫描**。测试中的“9 条”表示当次观察到的 API/协议传输记录，不代表该应用所有业务接口，更不能直接推算正式 Recall/Precision。
+
+### 功能小结
+
+- **前端资源收集：** HTML、CSS、外部/内联 JS、表单、站内链接及受限的懒加载 JS chunk。
+- **静态发现：** Node/Babel AST 分析 `fetch`、axios、XHR 等，配合正则兜底。
+- **动态发现：** Playwright 捕获实际的 Fetch/XHR、受限的 SPA 路由和常见登录后请求。
+- **协议线索：** GraphQL、WebSocket、SSE，以及 Socket.IO 轮询/握手类型的区分。
+- **结果整理：** 路径归一化、去重、参数/鉴权/响应字段推断；真正证据与静态线索分开。
+- **安全约束：** 域名授权范围、逐跳重定向检查、共享请求限流、部分敏感信息脱敏、受限的资源预算。
+- **工程交付：** 固定 CLI、JSON Schema、Dockerfile、pytest、GitHub Actions、可追溯的历史验收文档。
+
+## 🧭 你应该从哪里开始？
+
+| 你的情况 | 推荐入口 |
+|---|---|
+| **完全零基础**，不懂 API、前后端、JSON 或文件夹 | [📖 零基础入门：概念 + 文件结构 + 运行示例](docs/BEGINNER_GUIDE.md) |
+| **想快速运行**，电脑上已经有 Linux 和练习站点 | 往下看「5 分钟上手」 |
+| **想看全部文件分别干什么** | [项目目录与模块边界](docs/PROJECT_STRUCTURE.md) |
+| **想理解整体架构** | [架构图](docs/architecture.md) 和 [底层算法说明](docs/PROJECT_ITERATIONS_ARCHITECTURE_ALGORITHMS.md) |
+| **想复现测试** | [测试与脚本说明](scripts/README.md)、[GitHub Actions](https://github.com/David-tiao/API/actions) |
+| **想看修复了什么问题** | [CHANGELOG](docs/CHANGELOG.md)、[故障与经验](docs/FIXES_AND_LESSONS.md) |
+| **想审查实测证据** | [Juice Shop](docs/ACCEPTANCE_JUICE_SHOP_2026-11-23.md)、[SPA / Socket.IO](docs/ACCEPTANCE_SPA_SOCKETIO_2026-11-23.md)、[Lazy JS](docs/ACCEPTANCE_RUNTIME_LAZY_CHUNKS_2026-11-23.md) |
+| **准备答辩或考核** | 本文的「验收边界」和 [离线评分说明](docs/OFFLINE_BENCHMARK.md) |
+
+## 🛠️ 5 分钟上手（Linux / 自建练习站）
+
+下面是**使用路径**，不是保证安装或扫描在任意电脑上都能 5 分钟完成。首次安装 Chromium / Python / Node 依赖可能耗时较长。
+
+### 1. 准备环境并取得代码
+
+推荐 Linux x86_64（Ubuntu 22.04/24.04 或兼容环境）；**本地运行**需要 Python 3.11+、Node.js、npm，并且能下载 Playwright Chromium。Docker 模式需要可用的 Docker Engine。
 
 ```bash
-sudo apt update
-sudo apt install -y python3 python3-venv python3-pip nodejs npm git unzip
-```
+git clone https://github.com/David-tiao/API.git
+cd API
 
-确认 Python 版本：
-
-```bash
 python3 --version
 node --version
 npm --version
+
+# 先做环境诊断，不扫描目标网站
+bash scripts/diagnose_environment_stage10.sh check
 ```
 
-仅在运行本地初始化脚本时，`python3` 必须为 3.11 或更新版本。**Ubuntu 22.04 宿主机使用 Docker 时无需升级系统 Python**。
-
-## 4. 解压到指定目录
-
-假设压缩包位于 `/home/tao/`：
+### 2. 安装项目依赖、运行自检
 
 ```bash
-sudo mkdir -p /home/tao/API
-sudo chown -R "$USER":"$(id -gn)" /home/tao/API
-unzip -o /home/tao/api-extractor-project.zip -d /home/tao/API
-cd /home/tao/API
-```
-
-解压后应能直接看到：
-
-```bash
-ls -la /home/tao/API
-# 应包含 api_extractor/ scripts/ tests/ Dockerfile README.md 等
-```
-
-不要解压成 `/home/tao/API/api-extractor/` 这种双层目录。
-
-所有 Shell 脚本均根据自身所在位置自动定位项目根目录，不依赖写死的 `/home/tao/API`。以后移动项目目录，无需修改脚本。
-
-## 5. 一键初始化
-
-```bash
-cd /home/tao/API
-chmod +x scripts/*.sh
+# 建立 .venv、安装 Python/Node 依赖和 Playwright 浏览器
 bash scripts/bootstrap_project_stage1_to_10.sh
+
+# 重新检查单元测试与命令行帮助
+.venv/bin/python -m pytest -q
+.venv/bin/python -m api_extractor.cli --help
 ```
 
-初始化脚本会：
+也可以在具备 Docker 的电脑上用 `docker build -t api-extractor:0.1.0 .` 构建镜像；可复现的自动 Docker 检查见 [`quality-gate.yml`](.github/workflows/quality-gate.yml)。
 
-1. 检查 Python、Node.js 和 npm；
-2. 创建 `.venv` Python 虚拟环境；
-3. 安装 `requirements.txt` 中固定版本的 Python 依赖；
-4. 根据 `package-lock.json` 执行 `npm ci`；
-5. 安装 Playwright Chromium；
-6. 运行单元测试并检查 CLI 入口。
+### 3. 只对**自己搭建或明确获授权**的练习站运行
 
-如果本机已安装并启动 Docker，且希望初始化后同时构建镜像：
+假设你已经**另行启动**了一个本地练习站，且它在 **`http://127.0.0.1:3000/`** 正常响应：
 
 ```bash
-bash scripts/bootstrap_project_stage1_to_10.sh --docker
-```
+cp examples/site.example.json site.local.json
 
-### Playwright 系统依赖
-
-如果本地模式启动浏览器时提示缺少 Linux 动态库，可执行：
-
-```bash
-sudo .venv/bin/python -m playwright install-deps chromium
-.venv/bin/python -m playwright install chromium
-```
-
-Docker 模式使用固定版本的 Playwright 官方 Ubuntu Noble 浏览器基础镜像，构建时不再执行 `playwright install --with-deps chromium`。仍需网络访问 Docker 基础镜像仓库、PyPI 和 npm。
-
-## 6. 一键启动 API 提取
-
-将组织方提供的配置文件放在项目目录中，例如 `/home/tao/API/site.json`，然后运行：
-
-```bash
-cd /home/tao/API
-bash scripts/start_extractor_stage8.sh \
-  "https://你的授权测试站点/" \
-  "./site.json" \
-  "./out/result.json" \
-  1200
-```
-
-参数依次为：
-
-1. 目标站点 URL；
-2. `site.json` 配置文件路径；
-3. 输出 `result.json` 路径；
-4. 时间预算（秒），默认示例为 1200 秒。
-
-启动脚本默认采用 `auto` 模式：Docker daemon 可用时使用 Docker，否则使用本地 `.venv`。也可以显式指定模式：
-
-```bash
-# 强制本地运行
+# 显式使用本地模式：容器里的 127.0.0.1 不是宿主机。
 API_EXTRACTOR_MODE=local bash scripts/start_extractor_stage8.sh \
-  "https://你的授权测试站点/" "./site.json" "./out/result.json" 1200
-
-# 强制 Docker 运行
-API_EXTRACTOR_MODE=docker bash scripts/start_extractor_stage8.sh \
-  "https://你的授权测试站点/" "./site.json" "./out/result.json" 1200
-```
-
-相对配置路径和输出路径按执行命令时所在的当前目录解析。建议先 `cd /home/tao/API` 再运行。
-
-## 7. 验证运行契约
-
-```bash
-cd /home/tao/API
-bash scripts/validate_contract_stage10.sh \
-  "https://你的授权测试站点/" \
-  "./site.json" \
+  "http://127.0.0.1:3000/" \
+  "./site.local.json" \
   "./out/result.json" \
-  1200
+  120
 ```
 
-单独运行单元测试：
+脚本的四个输入依次是：**起始网址、JSON 配置、输出文件、时间预算（秒）**。示例中的 `127.0.0.1:3000` 不会自动启动一个网站；没有本地目标时，不要预期生成有意义的接口结果。
 
-```bash
-.venv/bin/python -m pytest
-```
+- `examples/site.example.json` 只是配置格式示例；实际操作时需确认 `allowed_hosts` 与目标站点一致。
+- `credentials` 是可选账号信息；**不要在公开仓库提交真实密码、Token、Cookie 或包含这些信息的配置**。
+- Docker 与手动评测调用方式见 [脚本说明](scripts/README.md) 和 [零基础教程](docs/BEGINNER_GUIDE.md)。Docker 中连接练习容器时要使用正确的**容器网络和服务名**，不能直接照搬宿主机的 `127.0.0.1`。
+- 即使是 GET 请求也未必完全无副作用；必须先确认有明确授权，避免对第三方公共网站任意自动扫描。
 
-## 8. Docker 运行契约
-
-手动构建：
-
-```bash
-docker build -t api-extractor:0.1.0 .
-```
-
-评测环境调用示例：
-
-```bash
-docker run --rm \
-  --network bench-net \
-  -v /bench/cfg:/cfg:ro \
-  -v /bench/out:/out \
-  -e HTTP_PROXY="$HTTP_PROXY" \
-  -e HTTPS_PROXY="$HTTPS_PROXY" \
-  api-extractor:0.1.0 \
-  --target https://app.example.lab/ \
-  --config /cfg/site.json \
-  --out /out/result.json \
-  --budget 1200
-```
-
-## 9. 配置和输出
-
-`examples/site.example.json` 仅为格式示例。正式评测时应使用组织方提供的 `site.json`。
-
-- `allowed_hosts` 是额外的访问白名单，不能扩大到目标站点授权域名之外。
-- `credentials` 可选；当前对常见用户名/密码表单作尽力登录，不保证适配 MFA、验证码或复杂 SSO。
-- 不要将真实账号口令写入源码或提交到 Git。
-
-输出目录示例：
+### 4. 看懂输出，不只是看有没有报错
 
 ```text
 out/
-├── result.json
-├── tool.log
+├── result.json             已证据核验的接口报告
+├── static_candidates.json  静态分析发现但没有实测证据的候选
+├── tool.log                 一行一个 JSON 的运行日志（JSONL）
 └── evidence/
-    ├── dynamic.har
-    ├── js/
+    ├── dynamic.har          浏览器真实请求的 HAR 证据
+    ├── probe.har            如有显式授权 GET 验证，可能出现
+    ├── js/                  HTML/JS 相关的静态证据
     └── pages/
 ```
 
-`result.json` 遵循 `api_extractor/result.schema.json`。`tool.log` 为 JSONL，记录时间、方法、URL、状态码和阶段（`static`、`dynamic`、`verify`）。敏感查询参数会进行脱敏。
+```bash
+# JSON 是否能正常解析？
+.venv/bin/python -m json.tool out/result.json
 
-## 10. 已知限制与后续工作
+# 查看运行日志的最后几行（也要检查 run_status）
+tail -n 12 out/tool.log
+```
 
-1. **S4 签名恢复：** 当前识别疑似签名字段并保留运行时证据，不承诺通用还原任意加密算法。
-2. **S3 登录：** 支持常见用户名/密码表单的尽力登录；MFA、验证码、SSO 和自定义登录组件仍需增强。
-3. **S5 WebSocket：** 当前可捕获握手地址；消息帧语义和订阅结构还需扩展。
-4. **S5 GraphQL：** 当前识别请求入口与请求类型；未实现完整 Schema 推断。
-5. **页面探索：** 浏览器访问发现的同站链接并滚动触发懒加载；不会任意点击按钮，避免提交表单、修改数据或触发破坏性操作。
-6. **响应采样：** 仅采样有限大小的 JSON 响应字段，不保存二进制或大型响应体。
-7. **泛化评分：** 在取得 ground truth 前，不宣称已达到特定 Recall/Precision。提交前应在多个陌生练习站点运行并计算指标。
+**不要只看退出码 0。** `tool.log` 的 `run_status:completed`、`partial_browser_failure`、`incomplete_budget`、`failed` 各有不同含义；有些情况下程序可以成功写出**部分但合法**的结果。
 
-## 11. 第三方依赖与 AI 使用声明
+结果结构由 [`api_extractor/result.schema.json`](api_extractor/result.schema.json) 约束；可以参考 [输出样例](examples/result.example.json)。本地 `out/` 及实际目标站 HAR 可能包含敏感信息，不要原样公开。
 
-| 依赖 | 版本 | License | 用途 |
-|---|---:|---|---|
-| Python | 3.11+ | PSF | 主运行环境 |
-| HTTPX | 0.28.1 | BSD-3-Clause | HTTP 资源采集 |
-| Beautiful Soup 4 | 4.13.4 | MIT | HTML 解析 |
-| Playwright | 1.55.0 | Apache-2.0 | 浏览器自动化和网络观察 |
-| jsonschema | 4.25.1 | MIT | 输出结构校验 |
-| Node.js | 环境提供 | MIT | AST 分析运行环境 |
-| @babel/parser | 7.28.4 | MIT | JavaScript AST 解析 |
-| pytest | 8.4.2 | MIT | 单元测试 |
+## 🗂️ 项目目录速览
 
-**AI 使用声明（提交前核实并修改）：** 开发过程中使用 OpenAI ChatGPT 辅助架构讨论、代码草拟、测试脚手架和文档编写。提交者必须审查、理解、测试并能够独立维护所有提交组件，并按实际使用情况更新本声明。
+```text
+API/
+├── api_extractor/            Python 核心：流程、采集、分析、审计、输出
+│   ├── cli.py                命令行入口
+│   ├── pipeline.py           全流程调度、时间预算和结果状态
+│   ├── config.py             读取 site.json
+│   ├── scope.py              限定授权域名
+│   ├── request_control.py    限流 / 并发控制
+│   ├── crawler.py            HTML / JS / CSS / 链接采集
+│   ├── static_analysis.py    JavaScript 静态 API 线索
+│   ├── dynamic_analysis.py   Playwright 浏览器动态观察
+│   ├── candidates.py         来源数据转候选
+│   ├── normalization.py      路径、参数、鉴权、去重
+│   ├── evidence.py           HAR / 日志 / 证据核验
+│   ├── output.py             JSON Schema 校验与输出
+│   └── result.schema.json    正式接口输出的格式要求
+├── tools/                    Node / Babel AST 辅助工具
+├── scripts/                  初始化、启动、诊断、验收脚本
+├── tests/                    pytest 测试与合成练习站夹具
+├── docs/                     入门、架构、迭代、验收文档
+├── examples/                 示例配置与结果
+├── demo/                     演示材料说明
+├── archive/legacy/           历史 ZIP / Dockerfile 备份（非当前入口）
+├── .github/workflows/        GitHub 自动验收工作流
+├── Dockerfile                容器构建说明
+├── requirements.txt          Python 依赖版本
+├── pyproject.toml            Python 项目与 pytest 配置
+├── package.json              Node/Babel 依赖声明
+├── package-lock.json         Node 依赖版本锁定
+├── site.json                 本地示例配置，非真实秘密
+├── TOPIC                     选题标记
+└── README.md                 你正在阅读的项目首页
+```
 
-## 12. 开发过程证据
+**为什么没有 `src/`？** 目前实际的 Python 包就在根目录 `api_extractor/`。这是已测试并延续的布局，不应为了看起来符合某种模板而复制第二套核心代码。详见 [架构决策 ADR-0001](docs/adr/0001-compatibility-first.md)。
 
-保留完整 Git commit 历史，不要 squash 为单次提交。保存设计笔记、中间草稿、测试输出和关键节点截图。评审可能要求解释任意函数的实现与设计取舍。
+还包含 `graphql_semantics.py`、`transport_semantics.py`、`signature_semantics.py`、`sse_sampling.py`、`redirect_policy.py`、`verification.py`、`offline_benchmark.py` 等专项模块，逐个解释见 [入门指南](docs/BEGINNER_GUIDE.md)。
 
+## 🔬 如何独立验证？
 
-## 13. 当前修复记录与验收（请先看）
-
-在 [docs/FIXES_AND_LESSONS.md](docs/FIXES_AND_LESSONS.md) 中记录了已经复现的缺陷、修复方案、未验证项与工程经验。新增的 `tests/test_contract_regressions.py` 和 `tests/test_integration_local_http.py` 用于回归验证，不应把单元测试通过理解成所有 S1～S5 站点评分合格。
-
-建议依次执行：
+在已经安装依赖的本地环境：
 
 ```bash
-bash scripts/diagnose_environment_stage10.sh build
-bash scripts/diagnose_environment_stage10.sh test
-# 仅对自己部署或获得明确授权的练习站点运行：
-bash scripts/acceptance_stage10.sh https://你的授权站点/ ./site.json 180
+.venv/bin/python -m pytest -q
+
+# 使用已部署、明确授权的练习站做双轮验收
+bash scripts/acceptance_stage10.sh \
+  "http://127.0.0.1:3000/" "./site.local.json" 180
 ```
 
-`acceptance_stage10.sh` 会将两次独立运行的输出放在 `out/acceptance/`，并检查镜像大小、Schema、日志、证据链接与结果稳定性。它不会更改 Docker 服务或关闭其他容器。
+双轮验收脚本需要 Docker 与可访问的目标环境，运行前请阅读 [`scripts/README.md`](scripts/README.md)。如需查看 GitHub 的真实 CI 历史：
 
-**AI 使用补充声明：** 2026-11-22 期间使用 OpenAI ChatGPT 辅助完成运行契约与作用域修复、S4/S5 基础识别扩展、测试脚本和问题记录。提交者仍须对全部代码进行个人理解、真实环境复现、来源核对和最终答辩；正式提交前应按实际情况完善本声明。
+- [主分支 Python + Docker/Chromium 质量门禁](https://github.com/David-tiao/API/actions/workflows/quality-gate.yml)
+- [最新完整基线验证：267 passed / 10 次 Chromium](https://github.com/David-tiao/API/actions/runs/45138090536)
+- [自行部署 Juice Shop 双轮实测与局限](docs/ACCEPTANCE_JUICE_SHOP_2026-11-23.md)
+- [两轮一致性和分数公式（离线工具）](docs/OFFLINE_BENCHMARK.md)
 
+测试的证据范围必须分清：**单元测试 ≠ 真实浏览器合成测试 ≠ 陌生授权网站 ≠ 官方隐藏评测**。
 
-## 14. 项目迭代与底层算法
+## ⚠️ 项目边界：工程收官不等于所有场景都完美
 
-阅读 [docs/PROJECT_ITERATIONS_ARCHITECTURE_ALGORITHMS.md](docs/PROJECT_ITERATIONS_ARCHITECTURE_ALGORITHMS.md)，了解迭代历史、架构数据流、AST/正则/Playwright/归一化/证据审计的设计依据，以及真实验证与当前缺口的区别。
+1. **授权是前提。** 仅用于自己搭建或获得明确授权的站点；共享公共演示站也不能默认允许自动扫描。
+2. **覆盖率不能凭空计算。** 没有权威接口真值 `ground truth` 时，不声称官方 Recall、Precision 或总分。
+3. **复杂登录仍有局限。** MFA、验证码、跨站 SSO 和未知业务流程，不保证自动完成。
+4. **签名和协议识别有边界。** 能观察部分签名字段、GraphQL、SSE、WebSocket、Socket.IO，但不保证恢复任意加密算法、业务语义或所有订阅事件。
+5. **安全审计仍需正式环境复核。** 现有合成测试不能代替组织方考核机的文件访问、代理、DNS 和外部联网系统级审计。
+6. **输出需要保护。** `site.json`、`tool.log`、HAR、JS 缓存、历史 Git 提交都可能携带敏感信息；将仓库设为私有并不能自动清理旧的公开历史，公开前应单独审查。
+7. **项目历史保留可追溯。** 历次设计与修复记录在 `docs/`；本项目的老 ZIP / Dockerfile 备份不是当前权威源代码。
 
+## 📚 技术依赖、致谢与 AI 使用说明
 
-## 15. 版本更迭记录
+| 技术 | 版本/来源 | 用途 |
+|---|---|---|
+| Python | 3.11+ | 主要业务逻辑与 CLI |
+| HTTPX | 0.28.1 | HTTP 采集 |
+| Beautiful Soup 4 | 4.13.4 | 解析 HTML |
+| Playwright | 1.55.0 | Chromium 自动浏览与真实请求观察 |
+| jsonschema | 4.25.1 | JSON Schema 校验 |
+| Node.js + @babel/parser | Node 环境 / Babel 7.28.4 | JavaScript AST 分析 |
+| pytest | 8.4.2 | 自动化测试 |
+| Docker | 依执行环境安装 | 构建、隔离与复现 |
 
-所有版本阶段与实际 Git 提交的对应关系、各次 AI 辅助修改原因、涉及文件、验证状态及遗留问题，统一维护在 [docs/CHANGELOG.md](docs/CHANGELOG.md)。阶段编号不是软件发行版本，当前工具版本仍为 `0.1.0`。
+以上技术由各自维护者开发，遵循各自许可；具体依赖声明见 [`requirements.txt`](requirements.txt)、[`package.json`](package.json)。
 
+**AI 辅助声明：** 开发过程中使用 OpenAI ChatGPT 辅助架构讨论、代码草拟、测试、问题排查和文档编写。提交者应理解、审查并能独立解释与维护全部内容，按实际情况完善正式提交材料。这里的“完结”只指当前开发和已有测试闭环，不意味着隐瞒 AI 使用或宣称官方考核通过。
 
-## 16. V8：可靠运行状态与部分结果交付
+## 🌸 收官寄语
 
-本次迭代不改变命令行参数或输出 JSON Schema。完成后可通过 `tool.log` 中最后的 `run_status:` 记录区分 `completed`、`partial_browser_failure`、`incomplete_budget` 和 `failed`。**根据评测细则 R2，部分但合法的结果允许退出码 0；应同时检查日志状态，不应把退出码 0 当作浏览器阶段全部成功。**
+从最早能读取网页，到静态 AST、真实 Chromium、证据审计、登录后探索、SPA 懒加载、Socket.IO，再到在独立练习站上发现问题、修复问题、补回归测试——这个项目最值得保留的成果，是**每个结论都有可以复核的测试和证据**。
 
-详细改动、对应提交和测试依据见 [docs/CHANGELOG.md](docs/CHANGELOG.md) 的 V8 记录。本轮新增 `tests/test_run_outcomes.py` 回归测试；真实 Docker 和陌生站点表现仍待验证。
+**代码已经汇入 `main`，欢迎从 [零基础教程](docs/BEGINNER_GUIDE.md) 开始阅读。**
 
+> 🎉 **完结撒花！** 下一位维护者的起点：先读懂项目，再运行测试，然后在明确授权范围内扩展功能。
 
-## 17. V9：日志脱敏与 HAR 证据一致性
+---
 
-`JsonlLogger` 已强化 URL 账号密码、敏感 Query 值的遮蔽；证据审计只关联当前任务新增的 `tool.log` 行，且检查 HAR 的方法、主机、路径、请求索引与状态。输出 Schema、CLI 参数不变。详见 [V9 更迭记录](docs/CHANGELOG.md) 和 [修复经验](docs/FIXES_AND_LESSONS.md)。
+### 历史与附加资料
 
-离线验证为**本轮 30 项针对性测试通过**，不代表当前主分支所有测试、真实 Chromium、Docker 或隐藏站点已验收。
-
-
-## 18. V10：规范目录与职责边界
-
-旧版 ZIP 与 Dockerfile 备份已保留原始 Git 内容并移动至 [archive/legacy](archive/README.md)。从 `pipeline.py` 抽出了候选映射纯函数模块 `api_extractor/candidates.py`，新增 8 项定向离线测试并通过。保持了 CLI、Dockerfile、脚本与输出 Schema 路径。文档导航见 [docs/README.md](docs/README.md)，代码边界见 [PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md)，实际修改详情见 [CHANGELOG.md](docs/CHANGELOG.md)。
-
-本轮**未**重跑当前 GitHub 完整测试集、Docker 或真实 Chromium；严格 `src/` 布局目前仍未迁移，原因见 [ADR-0001](docs/adr/0001-compatibility-first.md)。
-
-
-## 19. V11：安全作用域与 WebSocket 全局门控
-
-已经对 `ScopeGuard` 的 R5 公共后缀判定做 fail-closed 修复，并使 WebSocket 连接纳入共享 RequestGate。变更目的、代码与 19 项专项离线测试见 [docs/CHANGELOG.md](docs/CHANGELOG.md)（V11），最新验收边界见 [docs/ACCEPTANCE_V11_2026-11-22.md](docs/ACCEPTANCE_V11_2026-11-22.md)。**没有重新运行真实 Docker/Chromium；R6 静态 API 的真实请求证据仍是待办**。保持原 CLI、Schema 和项目软件版本 `0.1.0` 不变。
-
-
-## 20. V12：正式接口与静态候选分开输出
-
-**行为变化**：`result.json` 只输出具有已核验 HAR + 本轮请求日志支持的接口；仅在 JS/HTML 中出现、尚未真实请求过的线索保存在同目录 `static_candidates.json`，标记为未验证。不会为静态候选伪造请求日志，也不会为了补证据擅自调用未知的状态变更 API。固定 CLI、原 `result.schema.json` 和 Dockerfile 不变。
-
-本轮 50 项相关离线测试通过，但尚未重新运行 GitHub 最新完整检出版本、真实 Docker/Chromium 或接口重放。**这种精确率优先策略可能降低静态站点的覆盖率，不能保证最终评分更高。** 详细取舍见 [docs/CHANGELOG.md](docs/CHANGELOG.md)（V12）与 [V12 验收报告](docs/ACCEPTANCE_V12_2026-11-22.md)。
-
-
-## 21. V13：本地显式授权 GET 验证
-
-V12 默认不把未观察到的 JS/HTML 请求当成正式 API。V13 增加**仅限自己部署或明确获授权的练习站点**的可选功能：在本地 `site.json` 增加最多 5 个操作者事先确认可安全调用的完整 GET URL。
-
-```json
-{
-  "site_id": "local-practice",
-  "allowed_hosts": ["127.0.0.1"],
-  "credentials": [],
-  "headers": {},
-  "explicit_readonly_get_urls": [
-    "http://127.0.0.1:3000/api/public-items"
-  ]
-}
-```
-
-只有该 URL 同时存在于静态发现的 GET 候选，经过作用域和共享限流器检查，且得到真正的 2xx JSON 响应，才会记录 `tool.log` 和 `evidence/probe.har` 并在证据审计通过后进入 `result.json`。默认无字段时验证请求数为 0；不发送 Cookie、用户名/密码及自定义 Header，不跟随重定向，拒绝 Query、URL 凭据与动态占位符。
-
-**GET 本身不保证只读，必须自行确认该 URL 的授权和无副作用。官方第 3.6 节不允许针对隐藏站点手工枚举接口作为适配方式**；本选项仅用于本地实验，不应作为正式评分提升的依据。87 项隔离离线测试通过，不意味着真实 Docker/Chromium/重放通过。见 [CHANGELOG](docs/CHANGELOG.md) V13、[V13 验收记录](docs/ACCEPTANCE_V13_2026-11-22.md) 与 [ADR-0002](docs/adr/0002-local-get-verification.md)。
-
-
-
-## 22. V14：离线 Recall/Precision 与双轮稳定性基准
-
-新增可**独立执行、完全离线**的 `python -m api_extractor.offline_benchmark`。从自建模拟站点的 ground truth 和两次独立运行目录读取结果、HAR、`tool.log`，计算按照考核细则权重的 Recall（40）、Precision（20），分析重复接口、第三方域名误报、HAR/日志一致性、T1/T2/T3 分档召回，以及 `0.7 × mean + 0.3 × min` 双轮修正。
-
-使用方法：[docs/OFFLINE_BENCHMARK.md](docs/OFFLINE_BENCHMARK.md)。本轮离线执行结果：[V14 验收记录](docs/ACCEPTANCE_V14_2026-11-22.md)；更迭历史：[CHANGELOG.md](docs/CHANGELOG.md)。
-
-**不计**官方语义 20 分、证据链 10 分和工程质量 10 分；报告的 `official_100_point_score` 固定为 `null`。隔离组合工作副本 119 项 pytest 通过，其中 V14 新增 32 项；尚未进行当前 GitHub 精确 checkout 全量测试或真实 Docker/Chromium 与隐藏站点评测。该模块仅为离线开发质量门槛，不修改正式扫描行为。
-
-
-
-## 23. V15：同一提交自动验收
-
-新增 [GitHub Actions 质量门禁](.github/workflows/quality-gate.yml)，用于自动运行当前 GitHub 提交的全仓库 `pytest`、语法检查，并在前者通过时构建 Docker 镜像、检查大小与构建时间，在**仅含合成 HTTP 站点**的 Docker internal 网络中运行两次真实 Chromium。结果必须包含真实 `GET /api/items` 请求、`tool.log`、HAR 与一致的接口集合，不能以空 `result.json` 冒充验收成功。
-
-本地手动运行（必须已构建镜像、允许本机 Docker 操作）：`bash scripts/ci_docker_smoke.sh api-extractor-ci:latest`。具体契约、当前运行结果和未验证项见 [docs/ACCEPTANCE_V15_2026-11-22.md](docs/ACCEPTANCE_V15_2026-11-22.md)。
-
-此 CI **不访问真实考核站点**，不包含任何内部资料；请先将 GitHub 仓库设为 Private，并单独完成旧提交历史清理。真实 Docker、官方 R1～R8、S1～S5 及正式重放只有实际验证后才能给出最终结论。
-
-
-**V15 首轮验证更新**：GitHub Actions [Run #1](https://github.com/David-tiao/API/actions/runs/45011683183) 已真实执行，精确 checkout 137 项测试通过；Docker 28 秒构建、镜像 2,864,215,392 字节；自建隔离站点真实 Chromium 双轮各输出 1 条 API。后续提交会对 JSON Schema 和 HAR/日志索引作更严格的二次检查。参见 [V15 记录](docs/ACCEPTANCE_V15_2026-11-22.md)，这些数字不是正式隐藏站点评分。
-
-
-**V15 加固版实测**：[GitHub Actions #2](https://github.com/David-tiao/API/actions/runs/45011978873) 的同一提交中，137 项测试通过，Docker 构建 32 秒、镜像 2,864,047,070 字节；两轮真实浏览器合成站点结果一致，独立 JSON Schema 校验及 HAR/日志关联验证均通过。仍需组织方授权场景、代理安全与隐私历史清理，见 [V15 验收报告](docs/ACCEPTANCE_V15_2026-11-22.md)。
-
-
-## 24. V16：SSR 与跨域阻断负向 Docker 验收
-
-GitHub CI 合成环境由 SPA 扩展到 SPA+SSR 双场景，各运行两次。SSR 内含未知 POST 表单、真实 GET、跨域图片和指向模拟禁止 Host 的 302 重定向。验收直接检查禁止 Host 容器接收日志、POST 没被提交、真实 GET 的 HAR/JSONL 与正式 Schema 一致。详见 [V16 验收](docs/ACCEPTANCE_V16_2026-11-22.md)。未进行正式隐藏站点或真实代理审计。
-
-
-**V16 真实验收补充**：[GitHub Actions 安全复验](https://github.com/David-tiao/API/actions/runs/45017605857)：150 项 pytest 通过；Docker 构建 26 秒、镜像约 2.86 GB；四轮真实 Chromium（SPA×2、SSR×2）及 4/4 独立 Schema 与 HAR/日志核验通过；独立越界模拟服务器本轮未收到禁止请求。此前 302 漏洞的修复在当前合成环境得到闭环证明。**仍待验证**：SSE 流、跨协议/非 GET 重定向以及正式代理和隐藏站点测试。
-
-
-## 25. V17：长期 SSE 流的安全有界观察
-
-V16 的逐跳安全 HTTP 路由对长期未结束的 SSE 流可能等待到超时。新增独立 `sse_sampling.py`，识别 Chromium 的 `eventsource` 请求，继续使用 ScopeGuard 与共享 RequestGate；用禁止重定向的 HTTPX 流式连接读取**真实首个完整 SSE 数据事件**（最多 32 KiB、5 秒、同 URL 3 次），再转发原始事件字节给浏览器，不制造虚构事件、HTTP 状态或请求证据。不会发送认证 Cookie/配置凭据，也不能承担持续多事件流代理。
-
-在 CI 增加真实延迟关闭的 SSE 合成服务端；SPA、SSR、SSE 各两轮，分别检验非空 API、HAR/JSONL、独立 Schema 和未授权服务接收端未遭访问。设计依据、测试与残留兼容性风险详见 [V17 验收](docs/ACCEPTANCE_V17_2026-11-22.md)；真正结果以当前 GitHub Actions 运行状态为准。正式 S1～S5 隐藏分数仍未验证。
-
-
-**V17 最终实测（2026-11-22）**：[GitHub Actions](https://github.com/David-tiao/API/actions/runs/45019475066) 绑定代码提交 `0bd65699`，全仓库 **169 passed**、Docker **28 秒/约 2.86 GB**、SPA/SSR/SSE 各两轮、**6/6 Schema/HAR/日志检查通过**、未授权合成服务端零禁止请求。首轮 SSE 因 `bytearray` 与 Playwright 类型不匹配失败，修复后由真实长连接与 Chromium 双轮闭环验证；不意味着完整 SSE 订阅语义或正式 S1～S5 隐藏基准已通过。见 [V17 验收](docs/ACCEPTANCE_V17_2026-11-22.md)。
-
-
-## 26. V18：登录后 POST 303 的安全兼容
-
-新增独立 `redirect_policy.py`：只在 ScopeGuard 明确允许、方法与协议转换安全时执行下一跳。模拟登录的 POST→303→GET 允许同主机同协议同端口转换并删除 POST Body/敏感 Header；GET 可升级到同 Host HTTPS，HTTPS 降级拒绝。禁止自动重发非幂等 POST 307/308，保留 V16 跨域安全和 V17 有界 SSE。首个真实 POST 303 与后续 GET 200 在日志中区分，不把原 POST 伪记为 200。
-
-GitHub Actions 增加自建 Cookie 登录模拟场景，SPA/SSR/SSE/Login 各两轮；只在 Login 场景用固定虚构测试凭据，确认私有 GET 真正返回 200，全部继续二次 Schema、HAR、日志与越界接收端核查。初始阶段本地规则/fixture 共 29 项通过；完整 CI 结果见 [V18 验收报告](docs/ACCEPTANCE_V18_2026-11-22.md)。保密历史清理与正式 S1～S5 隐藏站点仍是独立待验收事项。
-
-
-**V18 完成验收**：[GitHub Actions](https://github.com/David-tiao/API/actions/runs/45021419911) 已对同一代码提交执行 **202 项 pytest** 和 **8 次真实 Chromium 合成测试**（SPA/SSR/SSE/带 Cookie 登录各两轮），全部成功；Docker 35 秒、镜像约 2.86 GB，八次 Schema/HAR/日志检查通过，未授权接收端零禁止请求。实际登录 POST 303 与后续 GET 200 分开记录，已登录私有 API 真正返回 200。真实 HTTPS 证书、跨域 SSO、正式 S1～S5 与历史保密清理仍未完成，参见 [V18 验收报告](docs/ACCEPTANCE_V18_2026-11-22.md)。
+- [2026-11-23 完结版改写之前的完整 README 存档](docs/README_HISTORY_BEFORE_FINALE_2026-11-23.md)（旧阶段记录，仅用于追溯）
+- [开发过程及架构算法](docs/PROJECT_ITERATIONS_ARCHITECTURE_ALGORITHMS.md)
+- [更多使用与诊断指导](docs/API_EXTRACTOR_AI_OPERATIONS.md)
+- [文档总目录](docs/README.md)
