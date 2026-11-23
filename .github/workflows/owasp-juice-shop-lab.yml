@@ -26,8 +26,8 @@ jobs:
 
       - name: Pull upstream official OWASP Juice Shop image
         run: |
-          timeout 240s docker pull bkimminich/juice-shop:latest
-          docker image inspect bkimminich/juice-shop:latest --format 'Lab app image ID: {{.Id}}'
+          timeout 240s docker pull bkimminich/juice-shop@sha256:adaf6a6ca50f772dff7d2fe56972c659e81a61e0dbbe607c2b39fefd436e6153
+          docker image inspect bkimminich/juice-shop@sha256:adaf6a6ca50f772dff7d2fe56972c659e81a61e0dbbe607c2b39fefd436e6153 --format 'Lab app image ID: {{.Id}}'
 
       - name: Two independent read-only scans on a private Docker network
         run: bash scripts/ci_lab_juiceshop.sh
