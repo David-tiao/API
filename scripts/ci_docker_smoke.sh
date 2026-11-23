@@ -151,6 +151,17 @@ for ev in hars:
                and r.get('status') == entry['response']['status'] for r in rows), (
                'HAR request does not match a successful actual log request')
 review = json.loads((root / 'static_candidates.json').read_text())
+if scenario == 'spa_hash':
+    declared = (root / 'evidence' / 'js')
+    runtime_chunks = list(declared.glob('runtime-*.js'))
+    assert runtime_chunks, 'Late-loaded browser JS chunk was not persisted'
+    assert any('onlyDeclaredNotCalled' in p.read_text() for p in runtime_chunks), (
+        'Expected late-loaded JS content not captured')
+    assert any((row['method'], row['path']) ==
+               ('GET', '/api/lazy-declared-only') for row in review['candidates']), (
+        'API declaration in lazy JS chunk was not found by AST/regex')
+    assert not any(e['path'] == '/api/lazy-declared-only' for e in eps), (
+        'Uncalled lazy-chunk declaration was falsely promoted as a request-proven API')
 if scenario == 'ssr':
     assert any((r['method'], r['path']) == ('POST', '/api/submit')
                for r in review['candidates']), 'SSR form not preserved as unverified hint'
