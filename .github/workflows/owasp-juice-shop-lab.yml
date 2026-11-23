@@ -1,0 +1,42 @@
+name: Independent OWASP Juice Shop lab acceptance
+on:
+  push:
+    branches:
+      - validation/juice-shop-selfhosted-20261123
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  selfhosted-juice-shop:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 22
+    steps:
+      - name: Check out exact scanner source
+        uses: actions/checkout@v4
+
+      - name: Check lab script syntax
+        run: bash -n scripts/ci_lab_juiceshop.sh
+
+      - name: Build evaluation scanner image
+        run: |
+          timeout --signal=TERM --kill-after=10s 900s docker build --pull -t api-extractor-juice-lab:latest .
+          docker image inspect api-extractor-juice-lab:latest --format 'Scanner image bytes: {{.Size}}'
+
+      - name: Pull upstream official OWASP Juice Shop image
+        run: |
+          timeout 240s docker pull bkimminich/juice-shop:latest
+          docker image inspect bkimminich/juice-shop:latest --format 'Lab app image ID: {{.Id}}'
+
+      - name: Two independent read-only scans on a private Docker network
+        run: bash scripts/ci_lab_juiceshop.sh
+
+      - name: Preserve summary only (no HAR, credentials or response bodies)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: juice-shop-local-acceptance-summary
+          path: lab-output/summary.json
+          if-no-files-found: warn
+          retention-days: 7
