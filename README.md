@@ -4,6 +4,8 @@
 
 本项目面向经授权的 Web 站点，自动采集前端资源、分析 JavaScript、观察浏览器运行时请求，并输出结构化 `result.json`、JSONL `tool.log` 与请求证据。
 
+> **从零开始？** 先读 [项目零基础入门指南：概念解释和文件结构](docs/BEGINNER_GUIDE.md)，再按本文的安装与运行步骤操作。
+
 > GitHub 当前分支中的文本源码是项目权威版本；旧发行 ZIP 和 Dockerfile 备份已归档到 `archive/legacy/`，不要与最新代码混用。
 
 ## 1. 当前实现范围
