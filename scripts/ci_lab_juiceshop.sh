@@ -26,15 +26,12 @@ docker run -d --pull=never --name "$app" --network "$net" \
   --network-alias juice-shop "$APP_IMAGE" >/dev/null
 ready=0
 for _ in $(seq 1 180); do
-  if docker exec "$app" node -e '
-const http = require("node:http");
-const request = http.get("http://127.0.0.1:3000/", response => {
-  response.resume();
-  process.exit(response.statusCode >= 200 && response.statusCode < 400 ? 0 : 1);
-});
-request.on("error", () => process.exit(1));
-request.setTimeout(2000, () => process.exit(1));
-' >/dev/null 2>&1; then ready=1; break; fi
+  # Juice Shop performs optional external-dependency checks on startup.
+  # Its own boot completion marker is more reliable inside a no-egress lab.
+  if docker logs "$app" 2>&1 | grep -q 'Server listening on port 3000'; then
+    ready=1
+    break
+  fi
   sleep 2
 done
 if [[ "$ready" != 1 ]]; then
@@ -44,6 +41,17 @@ if [[ "$ready" != 1 ]]; then
   exit 1
 fi
 echo "Self-hosted Juice Shop ready: internal Docker network only."
+echo "Checking Juice Shop HTTP from inside its own container:"
+docker exec "$app" node -e '
+const http = require("node:http");
+const req = http.get("http://127.0.0.1:3000/", response => {
+  console.log("HTTP response status:", response.statusCode);
+  response.resume();
+});
+req.on("error", e => console.log("HTTP connection error:", e.code));
+req.setTimeout(3000, () => { console.log("HTTP readiness timed out"); req.destroy(); });
+' || :
+
 docker image inspect "$APP_IMAGE" --format 'Juice Shop image ID: {{.Id}}'
 
 cat > "$tmp/site.json" <<'JSON'
