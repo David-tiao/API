@@ -25,7 +25,6 @@
 | 简明数据流架构图 | [architecture.md](architecture.md) |
 | AI 启动与排错操作说明 | [API_EXTRACTOR_AI_OPERATIONS.md](API_EXTRACTOR_AI_OPERATIONS.md) |
 | 为什么不直接迁移全部源码到 src/ | [adr/0001-compatibility-first.md](adr/0001-compatibility-first.md) |
-
 | 完结版之前的完整 README 文字存档（仅供追溯，不应作为最新运行指南） | [README_HISTORY_BEFORE_FINALE_2026-11-23.md](README_HISTORY_BEFORE_FINALE_2026-11-23.md) |
 
 **维护约定**：源码每次变动同步更新 CHANGELOG，必要时更新架构图、故障经验、测试说明；记录离线测试、Docker、真实站点评测各自的范围。项目入口仍以根目录 [README](../README.md) 为准。
