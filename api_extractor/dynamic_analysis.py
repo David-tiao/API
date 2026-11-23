@@ -338,6 +338,7 @@ class DynamicAnalyzer:
 
     async def run(self, pages: list[str]) -> list[dict]:
         browser = None
+        browser_close_error: KeyError | None = None
         self.failure_reason = None
         try:
             async with async_playwright() as playwright:
@@ -535,15 +536,20 @@ class DynamicAnalyzer:
                 await context.close()
                 try:
                     await browser.close()
-                except KeyError:
-                    # Playwright may rewrite an underlying transport-close
-                    # error as KeyError. It is safe to treat it as an already
-                    # closed browser ONLY when the public API confirms this.
-                    disconnected = not browser.is_connected()
+                except KeyError as exc:
+                    # Do not report success while browser is still connected.
+                    # The async_playwright context manager still owns and
+                    # shuts down the driver/transport on exit.
+                    browser_close_error = exc
                     self.logger.write("-", self.target, 0, "verify",
-                                      note=f"browser_close_keyerror:disconnected={disconnected}")
-                    if not disconnected:
-                        raise
+                                      note="browser_close_pending_driver_shutdown")
+                else:
+                    browser = None
+            if browser_close_error is not None:
+                if browser is not None and browser.is_connected():
+                    raise browser_close_error
+                self.logger.write("-", self.target, 0, "verify",
+                                  note="browser_shutdown_disconnected_confirmed")
                 browser = None
         except Exception as exc:
             self.failure_reason = type(exc).__name__
