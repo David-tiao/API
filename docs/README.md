@@ -3,6 +3,7 @@
 | 目的 | 权威文档 |
 |---|---|
 | **🎉 完结撒花版首页**：工程状态、快速开始、目录地图与验收边界 | [../README.md](../README.md) |
+| **能力与边界（必读）**：支持什么、支持到什么程度、明确不支持什么及验证依据 | [CAPABILITIES_AND_LIMITS.md](CAPABILITIES_AND_LIMITS.md) |
 | **零基础先读**：项目整体介绍、术语、文件夹含义、运行与输出详解 | [BEGINNER_GUIDE.md](BEGINNER_GUIDE.md) |
 | **浏览器加载的 Lazy JS Chunk** 静态 AST 二次分析及请求证据分层 | [ACCEPTANCE_RUNTIME_LAZY_CHUNKS_2026-11-23.md](ACCEPTANCE_RUNTIME_LAZY_CHUNKS_2026-11-23.md) |
 | **SPA Hash + Socket.IO** 受控路由发现、协议分类及双轮真实验证 | [ACCEPTANCE_SPA_SOCKETIO_2026-11-23.md](ACCEPTANCE_SPA_SOCKETIO_2026-11-23.md) |
