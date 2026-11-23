@@ -542,16 +542,8 @@ class DynamicAnalyzer:
                               note="browser_driver_context_closed")
         except Exception as exc:
             self.failure_reason = type(exc).__name__
-            # Lab-only diagnostic: source location, never exception arguments,
-            # URLs, request headers, credentials, or response content.
-            import traceback
-            frames = traceback.extract_tb(exc.__traceback__)
-            origin = (" > ".join(
-                f"{Path(frame.filename).name}:{frame.lineno}:{frame.name}"
-                for frame in frames[-12:]
-            ) if frames else "unknown")
             self.logger.write("-", self.target, 0, "dynamic",
-                              note=f"browser_phase_error:{self.failure_reason}:at={origin}")
+                              note=f"browser_phase_error:{self.failure_reason}")
         finally:
             self._limiter.close()
             if browser:
