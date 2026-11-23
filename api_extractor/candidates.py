@@ -15,7 +15,7 @@ _NETWORK_API_RESOURCES = frozenset({"fetch", "xhr", "eventsource", "websocket"})
 # assets rather than application APIs. Limit filtering to conventional bundles;
 # an ordinary /api/*.json endpoint must still be recorded and evidenced.
 _STATIC_I18N_BUNDLE = re.compile(
-    r"^/assets/i18n/[A-Za-z]{2,3}(?:[-_][A-Za-z0-9]{2,8})*\\.json$", re.IGNORECASE
+    r"^/assets/i18n/[A-Za-z]{2,3}(?:[-_][A-Za-z0-9]{2,8})*\.json$", re.IGNORECASE
 )
 
 
