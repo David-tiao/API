@@ -93,6 +93,17 @@ async def run_pipeline(target: str, config_path: str, out_path: str, budget: int
 
                 dynamic = DynamicAnalyzer(target, config, guard, gate, logger, out_dir)
                 dynamic_records = await dynamic.run([page.url for page in crawl.pages] + crawl.links[:8])
+
+                # A page reached through SPA routing may import additional JS
+                # that the initial crawl never saw. The browser has already
+                # downloaded these bytes: analyze them offline rather than
+                # issuing a second GET, and retain them as STATIC hints only.
+                for script in dynamic.script_records:
+                    if script.url in seen_scripts:
+                        continue
+                    seen_scripts.add(script.url)
+                    found, _ = analyzer.analyze(script)
+                    candidates.extend(found)
                 prober = ExplicitGetVerifier(config, guard, gate, logger, out_dir)
                 await prober.run(candidates)
 
