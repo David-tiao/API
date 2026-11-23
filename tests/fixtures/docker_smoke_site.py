@@ -37,6 +37,9 @@ class Handler(BaseHTTPRequestHandler):
                 '<script>'
                 'function onRoute() {'
                 '  if (location.hash === "#/reports") {'
+                '    const chunk=document.createElement("script");'
+                '    chunk.src="/assets/lazy-reports.js";'
+                '    document.body.appendChild(chunk);'
                 '    fetch("/api/hash-report").then(r=>r.json()).then(data=>{'
                 '      window.hashReport=data.source;'
                 '    });'
@@ -45,6 +48,16 @@ class Handler(BaseHTTPRequestHandler):
                 'addEventListener("hashchange", onRoute);'
                 'onRoute();'
                 '</script></body></html>'
+            ).encode()
+        elif path == '/assets/lazy-reports.js':
+            # This genuine on-demand chunk is requested *after* hash routing.
+            # Its API declaration is never executed. It belongs in
+            # static_candidates.json, NOT request-proven result.json.
+            status, typ, body = 200, 'application/javascript', (
+                'function onlyDeclaredNotCalled() {'
+                '  return fetch("/api/lazy-declared-only");'
+                '}'
+                'window.lazyReportChunkLoaded=true;'
             ).encode()
         elif path == '/api/hash-report':
             status, typ, body = 200, 'application/json', (
