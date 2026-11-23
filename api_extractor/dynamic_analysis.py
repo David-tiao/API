@@ -541,8 +541,10 @@ class DynamicAnalyzer:
             # URLs, request headers, credentials, or response content.
             import traceback
             frames = traceback.extract_tb(exc.__traceback__)
-            origin = (f"{Path(frames[-1].filename).name}:{frames[-1].lineno}"
-                      if frames else "unknown")
+            origin = (" > ".join(
+                f"{Path(frame.filename).name}:{frame.lineno}:{frame.name}"
+                for frame in frames[-12:]
+            ) if frames else "unknown")
             self.logger.write("-", self.target, 0, "dynamic",
                               note=f"browser_phase_error:{self.failure_reason}:at={origin}")
         finally:
