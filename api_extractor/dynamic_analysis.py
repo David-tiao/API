@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import os
 import re
@@ -12,6 +13,7 @@ from urllib.parse import parse_qsl, unquote, urljoin, urlsplit, urlunsplit
 from playwright.async_api import async_playwright
 
 from .config import SiteConfig
+from .crawler import ScriptRecord
 from .jsonl_logger import JsonlLogger, redact_url
 from .request_control import RequestGate
 from .redirect_policy import decide_redirect, safe_followup_headers
@@ -140,6 +142,12 @@ class DynamicAnalyzer:
         self.logger = logger
         self.out_dir = out_dir
         self.records: list[dict] = []
+        # Source files loaded only after browser navigation are not present in
+        # the initial HTML crawl. Cache their already-observed response bodies
+        # for later offline AST analysis; never replay a JS request.
+        self.script_records: list[ScriptRecord] = []
+        self._script_urls: set[str] = set()
+        self._script_bytes = 0
         self._request_map: dict[int, dict] = {}
         self._tasks: set[asyncio.Task] = set()
         self._limiter = BrowserRequestLimiter(gate)
@@ -204,6 +212,59 @@ class DynamicAnalyzer:
         except Exception:
             # An unusual DOM must not fail the whole browser phase.
             return []
+
+
+    async def _capture_runtime_script(self, response) -> None:
+        """Store bounded, in-scope JS response bodies without extra requests.
+
+        These are static source hints; they are NOT observed API calls, and must
+        never become HAR-backed result.json entries merely from AST matching.
+        """
+        request = response.request
+        if getattr(request, "resource_type", None) != "script":
+            return
+        url = str(response.url)
+        if not self.guard.is_allowed(url) or url in self._script_urls:
+            return
+        if len(self.script_records) >= 32 or self._script_bytes >= 8 * 1024 * 1024:
+            return
+        if response.status < 200 or response.status >= 400:
+            return
+        try:
+            headers = await response.all_headers()
+            mime = str(headers.get("content-type", "")).lower()
+            path = urlsplit(url).path.lower()
+            if "javascript" not in mime and not path.endswith((".js", ".mjs", ".cjs")):
+                return
+            # Avoid materializing obviously oversized responses. A missing
+            # Content-Length is still bounded after response.body().
+            size = headers.get("content-length")
+            if size is not None and int(size) > 2 * 1024 * 1024:
+                return
+            body = await response.body()
+            if not body or len(body) > 2 * 1024 * 1024:
+                return
+            if url in self._script_urls or len(self.script_records) >= 32:
+                return
+            if self._script_bytes + len(body) > 8 * 1024 * 1024:
+                return
+            digest = hashlib.sha256(url.encode("utf-8") + body).hexdigest()[:20]
+            relative = f"evidence/js/runtime-{digest}.js"
+            destination = self.out_dir / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(body)
+            self._script_urls.add(url)
+            self._script_bytes += len(body)
+            self.script_records.append(
+                ScriptRecord(url=url, content=body.decode("utf-8", errors="replace"),
+                             local_file=relative)
+            )
+        except (OSError, ValueError, TypeError, UnicodeError):
+            # A malformed or inaccessible script must not fail browser capture.
+            return
+        except Exception:
+            # Browser teardown can invalidate a pending response.body().
+            return
 
     async def _route_websocket(self, websocket_route) -> None:
         """Gate both WS connection creation and its open lifespan."""
@@ -419,6 +480,9 @@ class DynamicAnalyzer:
                     request = response.request
                     # Release the in-flight slot at response headers; SSE streams may stay open.
                     self._limiter.after(id(request))
+                    if getattr(request, "resource_type", None) == "script":
+                        await self._capture_runtime_script(response)
+                        return
                     row = self._request_map.get(id(request))
                     if not row:
                         return
