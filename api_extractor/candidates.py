@@ -6,9 +6,27 @@ normalization and evidence auditing belong to later pipeline stages.
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
+import re
 from typing import Any
+from urllib.parse import urlsplit
 
 _NETWORK_API_RESOURCES = frozenset({"fetch", "xhr", "eventsource", "websocket"})
+# Localization dictionaries can be loaded with fetch(), but remain static UI
+# assets rather than application APIs. Limit filtering to conventional bundles;
+# an ordinary /api/*.json endpoint must still be recorded and evidenced.
+_STATIC_I18N_BUNDLE = re.compile(
+    r"^/assets/i18n/[A-Za-z]{2,3}(?:[-_][A-Za-z0-9]{2,8})*\\.json$", re.IGNORECASE
+)
+
+
+def _is_static_ui_bundle(row: Mapping[str, Any], url: str) -> bool:
+    if str(row.get("http_method") or row.get("method") or "").upper() != "GET":
+        return False
+    try:
+        return bool(_STATIC_I18N_BUNDLE.fullmatch(urlsplit(url).path))
+    except ValueError:
+        return False
+
 
 
 def from_html_forms(forms: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
@@ -48,6 +66,8 @@ def from_network_records(records: Iterable[Mapping[str, Any]]) -> list[dict[str,
             continue
         url = row.get("url")
         if not isinstance(url, str) or not url:
+            continue
+        if _is_static_ui_bundle(row, url):
             continue
         candidates.append({
             "method": row.get("method") or row.get("http_method") or "GET",
