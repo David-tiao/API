@@ -6,6 +6,15 @@
 > 记录日期：2026-11-22（Asia/Singapore）  
 > **说明**：以下“V0～V18”是便于理解的**开发迭代阶段编号**，不是正式 Git Tag 或发布版本号。当前 `pyproject.toml` 中的软件版本仍为 `0.1.0`，不要把阶段编号当作发行版本。
 
+## 2026-11-23：动态加载 JS Chunk 的二次静态分析（PR #2，待合入）
+
+- 浏览器观察到的授权范围内 JS 响应体直接缓存到 `/out/evidence/js/runtime-*.js`，不额外发起 GET，不重放浏览器请求。设置单文件 2 MiB、合计 8 MiB、最多 32 个的显式资源上限。
+- 新 `ScriptRecord` 经现有 AST/Regex 二次分析；源代码声明只进入静态候选复核材料，不因源文件存在而被伪造为网络 API 证据。
+- 合成测试在进入 SPA `#/reports` 后才加载 `lazy-reports.js`，能从其中找出**未执行的** `GET /api/lazy-declared-only` 声明，但严格禁止其进入正式 `result.json`。
+- [CI #45132914193](https://github.com/David-tiao/API/actions/runs/45132914193)：`09694f13` 对应 **267 项 pytest 通过**，Docker/Chromium **10/10** 场景通过，构建 33 秒，镜像 2.86 GB。
+- [Juice Shop #45132904982](https://github.com/David-tiao/API/actions/runs/45132904982)：真实独立双轮各 9 条 HAR 证据记录，Jaccard 1.0000，Socket.IO 传输 3/3 正确标注；该站点的接口数量并未因本项改动增加。
+- 技术细节、限制、日志见 [Lazy Chunk 真实验收记录](ACCEPTANCE_RUNTIME_LAZY_CHUNKS_2026-11-23.md)。相关修复仍在 PR #2，不代表主分支已合并。
+
 ## 2026-11-23：SPA Hash 路由与 Socket.IO 传输分类（PR #2，待合入）
 
 - 保留安全 `#/...` 路由，采集 `a[href]` 和常见 Angular routerLink 属性，不点击未知按钮，不提交表单；防止客户端 Hash 路由被丢弃。新增只在真实 `#/reports` 导航后才触发 API 的合成验收，10/10 Docker/Chromium 场景通过。
