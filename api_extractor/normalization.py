@@ -165,8 +165,16 @@ def normalize_candidates(candidates: list[dict]) -> list[dict]:
         path = normalize_path(parsed.path)
         host = parsed.hostname.lower()
         key = (method, host, path)
+        transport_note = (
+            socketio_transport_note(url, method, candidate.get("resource_type"))
+            if candidate.get("source") == "dynamic" else None
+        )
         query = [_field(k, v, False) for k, v in parse_qsl(parsed.query, keep_blank_values=True)]
-        if method == "GQL" and is_raw_graphql_document(candidate.get("post_data")):
+        if transport_note:
+            # Engine.IO frames are opaque; treating them as form-encoded
+            # fields would export private message payload as parameter names.
+            body = []
+        elif method == "GQL" and is_raw_graphql_document(candidate.get("post_data")):
             # Raw GraphQL query text must never become a form field *name*.
             body = [_field("query", None, True, "string")]
         else:
@@ -199,14 +207,10 @@ def normalize_candidates(candidates: list[dict]) -> list[dict]:
         # Only an actual observed request can support signing metadata.
         signature_labels = (
             observed_signature_fields(candidate.get("headers"), url, candidate.get("post_data"))
-            if source in {"dynamic", "verified_get"} else []
+            if source in {"dynamic", "verified_get"} and not transport_note else []
         )
         if signature_labels:
             signed_observations.setdefault(key, set()).update(signature_labels)
-        transport_note = (
-            socketio_transport_note(url, method, candidate.get("resource_type"))
-            if source == "dynamic" else None
-        )
 
         entry = merged.get(key)
         if not entry:
@@ -215,7 +219,8 @@ def normalize_candidates(candidates: list[dict]) -> list[dict]:
                 "path": path,
                 "host": host,
                 "auth": ("sign" if signature_labels else
-                         infer_auth(candidate.get("headers"), url, candidate.get("post_data"))),
+                         infer_auth(candidate.get("headers"), url,
+                                    None if transport_note else candidate.get("post_data"))),
                 "params": {"path": path_params, "query": _merge_fields(query), "body": _merge_fields(body)},
                 "evidence": [],
                 "confidence": float(candidate.get("confidence", 0.5)),
@@ -234,7 +239,8 @@ def normalize_candidates(candidates: list[dict]) -> list[dict]:
             entry["params"]["query"] = _merge_fields(entry["params"]["query"], query)
             entry["params"]["body"] = _merge_fields(entry["params"]["body"], body)
             entry["params"]["path"] = _merge_fields(entry["params"]["path"], path_params)
-            new_auth = infer_auth(candidate.get("headers"), url, candidate.get("post_data"))
+            new_auth = infer_auth(candidate.get("headers"), url,
+                                  None if transport_note else candidate.get("post_data"))
             if new_auth == "sign" or (new_auth != "none" and entry["auth"] != "sign"):
                 entry["auth"] = new_auth
             if candidate.get("response_content_type") or candidate.get("response_fields"):
