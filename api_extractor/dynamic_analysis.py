@@ -50,12 +50,29 @@ _UNSAFE_NAV_ACTIONS = frozenset({
 })
 
 
+def _unsafe_nav_target(path: str, query: str) -> bool:
+    """Block likely state-changing routes, including encoded path segments."""
+    decoded = unquote(path)
+    # Fail closed on nested escapes (e.g. /%2564elete), backslashes and
+    # control characters that could be reinterpreted by an SPA router.
+    if "%" in decoded or "\\" in decoded or any(ord(ch) < 32 for ch in decoded):
+        return True
+    parts = [part.lower() for part in decoded.split("/") if part]
+    if any(part in _UNSAFE_NAV_SEGMENTS for part in parts):
+        return True
+    for key, item in parse_qsl(query, keep_blank_values=True):
+        if key.lower() in {"action", "op", "operation", "do", "cmd", "command"}:
+            if unquote(item).strip().lower() in _UNSAFE_NAV_ACTIONS:
+                return True
+    return False
+
+
 def _safe_readonly_nav_url(base_url: str, href: object, guard: ScopeGuard) -> str | None:
-    """Resolve an anchor without clicking it; reject unsafe or out-of-scope targets."""
+    """Resolve an observed link without clicking; allow guarded #/ SPA routes."""
     if not isinstance(href, str):
         return None
     value = href.strip()
-    if not value or value.startswith("#") or value.lower().startswith(
+    if not value or (value.startswith("#") and not value.startswith("#/")) or value.lower().startswith(
         ("javascript:", "data:", "mailto:", "tel:", "blob:")
     ):
         return None
@@ -68,14 +85,25 @@ def _safe_readonly_nav_url(base_url: str, href: object, guard: ScopeGuard) -> st
             return None
         if not guard.is_allowed(absolute):
             return None
-        parts = [unquote(part).lower() for part in parsed.path.split("/") if part]
-        if any(part in _UNSAFE_NAV_SEGMENTS for part in parts):
+        if _unsafe_nav_target(parsed.path, parsed.query):
             return None
-        for key, item in parse_qsl(parsed.query, keep_blank_values=True):
-            if key.lower() in {"action", "op", "operation", "do", "cmd", "command"}:
-                if unquote(item).strip().lower() in _UNSAFE_NAV_ACTIONS:
-                    return None
-        return urlunsplit((parsed.scheme, parsed.netloc, parsed.path or "/", parsed.query, ""))
+        fragment = parsed.fragment
+        spa_route = ""
+        if fragment.startswith("/"):
+            # A URL fragment is handled by the client-side router, not the HTTP
+            # server. Validate it separately; the normal ScopeGuard only sees
+            # the network URL before '#'.
+            if fragment.startswith("//") or "#" in fragment or "\\" in fragment:
+                return None
+            parsed_route = urlsplit(fragment)
+            if _unsafe_nav_target(parsed_route.path, parsed_route.query):
+                return None
+            spa_route = fragment
+        elif value.startswith("#"):
+            return None
+        return urlunsplit((
+            parsed.scheme, parsed.netloc, parsed.path or "/", parsed.query, spa_route
+        ))
     except (TypeError, ValueError, UnicodeError):
         return None
 
@@ -156,8 +184,10 @@ class DynamicAnalyzer:
     async def _read_only_links(self, page) -> list[str]:
         """Read bounded anchor URLs only; never click buttons or submit forms."""
         try:
-            hrefs = await page.locator("a[href]").evaluate_all(
-                "(nodes) => nodes.slice(0, 200).map(node => node.getAttribute('href'))"
+            hrefs = await page.locator("a[href], a[routerlink], a[ng-reflect-router-link]").evaluate_all(
+                "(nodes) => nodes.slice(0, 200).flatMap(node => ["
+                "node.getAttribute('href'), node.getAttribute('routerlink'),"
+                "node.getAttribute('ng-reflect-router-link')]).filter(Boolean)"
             )
             if not isinstance(hrefs, list):
                 return []
