@@ -154,6 +154,11 @@ for n in (1, 2):
                 f"Run {n}: HAR and JSONL do not prove the same concrete request")
         confirmed += 1
     fingerprint = sorted({(e["method"], e["host"], e["path"]) for e in endpoints})
+    transport = [
+        e for e in endpoints
+        if e["path"].rstrip("/").lower() in {"/socket.io", "/engine.io"}
+    ]
+    labeled_transport = [e for e in transport if "Socket.IO" in e.get("note", "")]
     snapshot = {
         "run": n,
         "complete": completed,
@@ -161,10 +166,13 @@ for n in (1, 2):
         "har_proven_count": confirmed,
         "api_fingerprint": [list(item) for item in fingerprint],
         "dynamic_log_records": sum(row.get("phase") == "dynamic" for row in rows),
+        "socketio_transport_count": len(transport),
+        "socketio_labeled_count": len(labeled_transport),
     }
     snapshots.append(snapshot)
     print(f"Juice Shop run {n}: {len(endpoints)} APIs; {confirmed} HAR-backed;"
           f" {snapshot['dynamic_log_records']} dynamic log records")
+    print(f"  Socket.IO labeled transports: {len(labeled_transport)}/{len(transport)}")
     for method, host, path in fingerprint[:20]:
         print(f"  {method} {host}{path}")
 
