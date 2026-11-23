@@ -2,11 +2,12 @@
 
 | 目的 | 权威文档 |
 |---|---|
+| **🎉 完结撒花版首页**：工程状态、快速开始、目录地图与验收边界 | [../README.md](../README.md) |
 | **零基础先读**：项目整体介绍、术语、文件夹含义、运行与输出详解 | [BEGINNER_GUIDE.md](BEGINNER_GUIDE.md) |
 | **浏览器加载的 Lazy JS Chunk** 静态 AST 二次分析及请求证据分层 | [ACCEPTANCE_RUNTIME_LAZY_CHUNKS_2026-11-23.md](ACCEPTANCE_RUNTIME_LAZY_CHUNKS_2026-11-23.md) |
 | **SPA Hash + Socket.IO** 受控路由发现、协议分类及双轮真实验证 | [ACCEPTANCE_SPA_SOCKETIO_2026-11-23.md](ACCEPTANCE_SPA_SOCKETIO_2026-11-23.md) |
 | **Juice Shop** 独立双轮真实容器验收、浏览器关闭修复与静态字典过滤 | [ACCEPTANCE_JUICE_SHOP_2026-11-23.md](ACCEPTANCE_JUICE_SHOP_2026-11-23.md) |
-| 开发分支：登录后深层页面探索、CI 验收与尚未合并的改动 | [INTEGRATION_STATUS_2026-11-22.md](INTEGRATION_STATUS_2026-11-22.md) |
+| **历史开发过程**：登录后深层页面探索和当时待合并的记录（后续改动已合入 `main`） | [INTEGRATION_STATUS_2026-11-22.md](INTEGRATION_STATUS_2026-11-22.md) |
 | **V18** 安全登录重定向与八轮 Docker 验收 | [ACCEPTANCE_V18_2026-11-22.md](ACCEPTANCE_V18_2026-11-22.md) |
 | **V17** SSE 有界流观察与六轮 Docker 验收 | [ACCEPTANCE_V17_2026-11-22.md](ACCEPTANCE_V17_2026-11-22.md) |
 | **V16** SSR/跨域负向验收与 CI 结果 | [ACCEPTANCE_V16_2026-11-22.md](ACCEPTANCE_V16_2026-11-22.md) |
@@ -24,5 +25,7 @@
 | 简明数据流架构图 | [architecture.md](architecture.md) |
 | AI 启动与排错操作说明 | [API_EXTRACTOR_AI_OPERATIONS.md](API_EXTRACTOR_AI_OPERATIONS.md) |
 | 为什么不直接迁移全部源码到 src/ | [adr/0001-compatibility-first.md](adr/0001-compatibility-first.md) |
+
+| 完结版之前的完整 README 文字存档（仅供追溯，不应作为最新运行指南） | [README_HISTORY_BEFORE_FINALE_2026-11-23.md](README_HISTORY_BEFORE_FINALE_2026-11-23.md) |
 
 **维护约定**：源码每次变动同步更新 CHANGELOG，必要时更新架构图、故障经验、测试说明；记录离线测试、Docker、真实站点评测各自的范围。项目入口仍以根目录 [README](../README.md) 为准。
