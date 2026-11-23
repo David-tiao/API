@@ -68,7 +68,8 @@ def test_same_host_303_login_issues_get_without_post_body_or_secrets(tmp_path):
     assert lower_headers['accept'] == 'text/html'
     assert analyzer._first_wire_status[id(route.request)] == 303
     rows = [json.loads(s) for s in log.splitlines()]
-    assert [(x['method'],x['status']) for x in rows if x['phase']=='redirect'] == [('POST',303),('GET',200)]
+    assert [(x['method'],x['status']) for x in rows
+            if x['phase']=='dynamic' and x.get('detail_phase')=='redirect'] == [('POST',303),('GET',200)]
     assert 'secret-cookie' not in log and 'fake-secret' not in log
 
 

@@ -6,6 +6,24 @@
 > 记录日期：2026-11-22（Asia/Singapore）  
 > **说明**：以下“V0～V18”是便于理解的**开发迭代阶段编号**，不是正式 Git Tag 或发布版本号。当前 `pyproject.toml` 中的软件版本仍为 `0.1.0`，不要把阶段编号当作发行版本。
 
+## 集成分支：登录后只读深层导航与 PR 自动验收（待验收）
+
+基线为 V18 `0607b7e1`，更改位于独立开发分支 `integration/authenticated-navigation-20261122`，尚未合并到 main。本轮扩展了经过登录后才能看见的站内锚点导航，严格限制 URL 范围、页面数，并新增真实 Cookie 合成站点的二级页面和 `GET /api/annual-report` 证据验收。GitHub Actions 现支持在 Pull Request 阶段运行全量测试和 Docker 端到端回归。
+
+本次实际代码范围、未验证项与后续整合 V20–V27 的边界见 [集成进度](INTEGRATION_STATUS_2026-11-22.md)。**此条仅记录代码变更，不表示 CI 或正式隐藏站点已通过。**
+
+## 集成分支增量：R6 日志阶段字段兼容（待验收）
+
+在独立 PR 的登录后导航改动之上，新增公开日志 `phase` 值域约束：`static/dynamic/verify`；内部重定向与验证类别保留在 `detail_phase`，并同步修改证据审计对日志的解释、旧单测和 Docker 双轮验收。**该增量的 GitHub CI 结果以包含此代码的实际运行编号为准**，不得沿用前一提交的成功记录。
+
+完整文件清单见 [集成进度](INTEGRATION_STATUS_2026-11-22.md)。
+
+## 集成分支增量：S4 签名字段和 GraphQL 安全识别（待最终 CI）
+
+当前 PR 在已有登录后导航与日志契约基础上，加入 `signature_semantics.py` 与 `graphql_semantics.py`。前者仅输出有界的签名字段位置与名字、不保存密钥或签名值；后者优先依据真实 GraphQL 操作或持久查询识别请求，避免把普通 REST 搜索 `query` 字段误认为 GQL，并且只输出合法操作名和变量类型。项目正式 JSON Schema、CLI、访问范围和限流规则未改变。
+
+新增专项测试，最终验收以实际 GitHub Actions 最新提交的完整 pytest 和 Docker/Chromium 结果为准。参见 [集成进度](INTEGRATION_STATUS_2026-11-22.md)。
+
 ## 验收快照：V10（2026-11-22，非功能版本）
 
 针对代码基线 `旧提交标识已隐去`，新增 [V10 验收报告](ACCEPTANCE_V10_2026-11-22.md)。结果：V10 候选纯函数的 8 项当前 GitHub SHA 一致的测试通过；但 R5 注册域解析存在可复现越界风险，静态推断的 API 无法自然满足逐条请求日志与重放证明。完整 GitHub 当前全仓库测试、Docker 和隐藏站点未验证。**本次只更新文档，不修改业务代码；不视为 V11 版本发布。**

@@ -61,7 +61,8 @@ def test_explicit_json_get_promotes_static_hint_to_verified_result(tmp_path, mon
     }
     assert json.loads((tmp_path / "static_candidates.json").read_text())["candidates"] == []
     log = (tmp_path / "tool.log").read_text()
-    assert '"phase": "probe"' in log and '"status": 200' in log
+    assert '"phase": "verify"' in log and '"detail_phase": "probe"' in log
+    assert '"status": 200' in log
     assert "request_proof_gate:confirmed=1,static_only=0" in log
 
 

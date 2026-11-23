@@ -93,26 +93,32 @@ root = Path(sys.argv[1]).resolve()
 expected, scenario = sys.argv[2:]
 result = json.loads((root / 'result.json').read_text())
 rows = [json.loads(s) for s in (root / 'tool.log').read_text().splitlines() if s.strip()]
+assert all(r.get('phase') in {'static', 'dynamic', 'verify'} for r in rows), (
+    'Public log phase must be static, dynamic, or verify')
 assert any(r.get('note') == 'run_status:completed' for r in rows), 'Incomplete browser run'
 if scenario == 'login':
-    posts = [r for r in rows if r.get('phase') in {'dynamic', 'redirect'} and r.get('method') == 'POST']
+    posts = [r for r in rows if r.get('phase') == 'dynamic' and r.get('method') == 'POST']
     assert posts and all(r.get('url', '').endswith('/api/session') for r in posts), (
         'Unexpected state-changing POST in login scenario')
-    assert any(r.get('phase') == 'redirect' and r.get('method') == 'POST'
-               and r.get('status') == 303 and r.get('url', '').endswith('/api/session')
+    assert any(r.get('phase') == 'dynamic' and r.get('detail_phase') == 'redirect'
+               and r.get('method') == 'POST' and r.get('status') == 303
+               and r.get('url', '').endswith('/api/session')
                for r in rows), 'Actual login POST 303 was not logged truthfully'
-    assert any(r.get('phase') == 'redirect' and r.get('method') == 'GET'
-               and r.get('status') == 200 and r.get('url', '').endswith('/dashboard')
+    assert any(r.get('phase') == 'dynamic' and r.get('detail_phase') == 'redirect'
+               and r.get('method') == 'GET' and r.get('status') == 200
+               and r.get('url', '').endswith('/dashboard')
                for r in rows), 'Actual dashboard GET was not logged truthfully'
     assert 'fixture-pass' not in (root/'tool.log').read_text(), 'Synthetic password exposed in log'
 else:
     assert not any(r.get('method') == 'POST' for r in rows), 'Unknown POST was invoked!'
 eps = result['endpoints']
 if scenario == 'login':
-    assert 1 <= len(eps) <= 2, f'Login must contain genuine API observations: {eps}'
+    assert 2 <= len(eps) <= 3, f'Login must contain private and deep APIs: {eps}'
     matching = [e for e in eps if (e['method'], e['host'], e['path']) == ('GET', 'fixture', expected)]
     assert len(matching) == 1, f'Authenticated GET API missing: {eps}'
-    assert all((e['method'],e['path']) in {('GET', '/api/private'), ('POST', '/api/session')} for e in eps)
+    assert all((e['method'],e['path']) in {('GET', '/api/private'), ('GET', '/api/annual-report'), ('POST', '/api/session')} for e in eps)
+    assert any((e['method'],e['path']) == ('GET', '/api/annual-report') for e in eps), (
+        'Authenticated two-hop report API was not discovered')
     ep = matching[0]
 else:
     assert len(eps) == 1, f'Expected exactly one real API in {scenario}, got {eps}'
