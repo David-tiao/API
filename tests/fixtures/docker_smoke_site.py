@@ -26,6 +26,43 @@ class Handler(BaseHTTPRequestHandler):
             status, typ, body = 200, 'application/json', json.dumps({
                 'items': [{'id': 1, 'name': 'synthetic-only'}], 'source': 'offline'
             }).encode()
+        elif path == '/spa-hash':
+            # The API is not requested until the SPA navigates to a real hash
+            # route. Collecting JS hints alone must not pass HAR verification.
+            status, typ, body = 200, 'text/html; charset=utf-8', (
+                '<!doctype html><html><body><h1>Hash router exercise</h1>'
+                '<a href="#/reports">Reports route</a>'
+                '<a href="#/logout">Unsafe logout route</a>'
+                '<a href="#/manage?action=delete">Unsafe action route</a>'
+                '<script>'
+                'function onRoute() {'
+                '  if (location.hash === "#/reports") {'
+                '    const chunk=document.createElement("script");'
+                '    chunk.src="/assets/lazy-reports.js";'
+                '    document.body.appendChild(chunk);'
+                '    fetch("/api/hash-report").then(r=>r.json()).then(data=>{'
+                '      window.hashReport=data.source;'
+                '    });'
+                '  }'
+                '}'
+                'addEventListener("hashchange", onRoute);'
+                'onRoute();'
+                '</script></body></html>'
+            ).encode()
+        elif path == '/assets/lazy-reports.js':
+            # This genuine on-demand chunk is requested *after* hash routing.
+            # Its API declaration is never executed. It belongs in
+            # static_candidates.json, NOT request-proven result.json.
+            status, typ, body = 200, 'application/javascript', (
+                'function onlyDeclaredNotCalled() {'
+                '  return fetch("/api/lazy-declared-only");'
+                '}'
+                'window.lazyReportChunkLoaded=true;'
+            ).encode()
+        elif path == '/api/hash-report':
+            status, typ, body = 200, 'application/json', (
+                '{"source":"synthetic-hash-navigation","observed":true}'
+            ).encode()
         elif path == '/ssr':
             # The form is intentionally NOT submitted: unknown POST operations
             # must remain static hints, not synthetic dynamic request evidence.

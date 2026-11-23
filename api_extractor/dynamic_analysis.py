@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import os
 import re
@@ -12,6 +13,7 @@ from urllib.parse import parse_qsl, unquote, urljoin, urlsplit, urlunsplit
 from playwright.async_api import async_playwright
 
 from .config import SiteConfig
+from .crawler import ScriptRecord
 from .jsonl_logger import JsonlLogger, redact_url
 from .request_control import RequestGate
 from .redirect_policy import decide_redirect, safe_followup_headers
@@ -50,12 +52,29 @@ _UNSAFE_NAV_ACTIONS = frozenset({
 })
 
 
+def _unsafe_nav_target(path: str, query: str) -> bool:
+    """Block likely state-changing routes, including encoded path segments."""
+    decoded = unquote(path)
+    # Fail closed on nested escapes (e.g. /%2564elete), backslashes and
+    # control characters that could be reinterpreted by an SPA router.
+    if "%" in decoded or "\\" in decoded or any(ord(ch) < 32 for ch in decoded):
+        return True
+    parts = [part.lower() for part in decoded.split("/") if part]
+    if any(part in _UNSAFE_NAV_SEGMENTS for part in parts):
+        return True
+    for key, item in parse_qsl(query, keep_blank_values=True):
+        if key.lower() in {"action", "op", "operation", "do", "cmd", "command"}:
+            if unquote(item).strip().lower() in _UNSAFE_NAV_ACTIONS:
+                return True
+    return False
+
+
 def _safe_readonly_nav_url(base_url: str, href: object, guard: ScopeGuard) -> str | None:
-    """Resolve an anchor without clicking it; reject unsafe or out-of-scope targets."""
+    """Resolve an observed link without clicking; allow guarded #/ SPA routes."""
     if not isinstance(href, str):
         return None
     value = href.strip()
-    if not value or value.startswith("#") or value.lower().startswith(
+    if not value or (value.startswith("#") and not value.startswith("#/")) or value.lower().startswith(
         ("javascript:", "data:", "mailto:", "tel:", "blob:")
     ):
         return None
@@ -68,14 +87,25 @@ def _safe_readonly_nav_url(base_url: str, href: object, guard: ScopeGuard) -> st
             return None
         if not guard.is_allowed(absolute):
             return None
-        parts = [unquote(part).lower() for part in parsed.path.split("/") if part]
-        if any(part in _UNSAFE_NAV_SEGMENTS for part in parts):
+        if _unsafe_nav_target(parsed.path, parsed.query):
             return None
-        for key, item in parse_qsl(parsed.query, keep_blank_values=True):
-            if key.lower() in {"action", "op", "operation", "do", "cmd", "command"}:
-                if unquote(item).strip().lower() in _UNSAFE_NAV_ACTIONS:
-                    return None
-        return urlunsplit((parsed.scheme, parsed.netloc, parsed.path or "/", parsed.query, ""))
+        fragment = parsed.fragment
+        spa_route = ""
+        if fragment.startswith("/"):
+            # A URL fragment is handled by the client-side router, not the HTTP
+            # server. Validate it separately; the normal ScopeGuard only sees
+            # the network URL before '#'.
+            if fragment.startswith("//") or "#" in fragment or "\\" in fragment:
+                return None
+            parsed_route = urlsplit(fragment)
+            if _unsafe_nav_target(parsed_route.path, parsed_route.query):
+                return None
+            spa_route = fragment
+        elif value.startswith("#"):
+            return None
+        return urlunsplit((
+            parsed.scheme, parsed.netloc, parsed.path or "/", parsed.query, spa_route
+        ))
     except (TypeError, ValueError, UnicodeError):
         return None
 
@@ -112,6 +142,12 @@ class DynamicAnalyzer:
         self.logger = logger
         self.out_dir = out_dir
         self.records: list[dict] = []
+        # Source files loaded only after browser navigation are not present in
+        # the initial HTML crawl. Cache their already-observed response bodies
+        # for later offline AST analysis; never replay a JS request.
+        self.script_records: list[ScriptRecord] = []
+        self._script_urls: set[str] = set()
+        self._script_bytes = 0
         self._request_map: dict[int, dict] = {}
         self._tasks: set[asyncio.Task] = set()
         self._limiter = BrowserRequestLimiter(gate)
@@ -156,8 +192,10 @@ class DynamicAnalyzer:
     async def _read_only_links(self, page) -> list[str]:
         """Read bounded anchor URLs only; never click buttons or submit forms."""
         try:
-            hrefs = await page.locator("a[href]").evaluate_all(
-                "(nodes) => nodes.slice(0, 200).map(node => node.getAttribute('href'))"
+            hrefs = await page.locator("a[href], a[routerlink], a[ng-reflect-router-link]").evaluate_all(
+                "(nodes) => nodes.slice(0, 200).flatMap(node => ["
+                "node.getAttribute('href'), node.getAttribute('routerlink'),"
+                "node.getAttribute('ng-reflect-router-link')]).filter(Boolean)"
             )
             if not isinstance(hrefs, list):
                 return []
@@ -174,6 +212,59 @@ class DynamicAnalyzer:
         except Exception:
             # An unusual DOM must not fail the whole browser phase.
             return []
+
+
+    async def _capture_runtime_script(self, response) -> None:
+        """Store bounded, in-scope JS response bodies without extra requests.
+
+        These are static source hints; they are NOT observed API calls, and must
+        never become HAR-backed result.json entries merely from AST matching.
+        """
+        request = response.request
+        if getattr(request, "resource_type", None) != "script":
+            return
+        url = str(response.url)
+        if not self.guard.is_allowed(url) or url in self._script_urls:
+            return
+        if len(self.script_records) >= 32 or self._script_bytes >= 8 * 1024 * 1024:
+            return
+        if response.status < 200 or response.status >= 400:
+            return
+        try:
+            headers = await response.all_headers()
+            mime = str(headers.get("content-type", "")).lower()
+            path = urlsplit(url).path.lower()
+            if "javascript" not in mime and not path.endswith((".js", ".mjs", ".cjs")):
+                return
+            # Avoid materializing obviously oversized responses. A missing
+            # Content-Length is still bounded after response.body().
+            size = headers.get("content-length")
+            if size is not None and int(size) > 2 * 1024 * 1024:
+                return
+            body = await response.body()
+            if not body or len(body) > 2 * 1024 * 1024:
+                return
+            if url in self._script_urls or len(self.script_records) >= 32:
+                return
+            if self._script_bytes + len(body) > 8 * 1024 * 1024:
+                return
+            digest = hashlib.sha256(url.encode("utf-8") + body).hexdigest()[:20]
+            relative = f"evidence/js/runtime-{digest}.js"
+            destination = self.out_dir / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(body)
+            self._script_urls.add(url)
+            self._script_bytes += len(body)
+            self.script_records.append(
+                ScriptRecord(url=url, content=body.decode("utf-8", errors="replace"),
+                             local_file=relative)
+            )
+        except (OSError, ValueError, TypeError, UnicodeError):
+            # A malformed or inaccessible script must not fail browser capture.
+            return
+        except Exception:
+            # Browser teardown can invalidate a pending response.body().
+            return
 
     async def _route_websocket(self, websocket_route) -> None:
         """Gate both WS connection creation and its open lifespan."""
@@ -389,6 +480,9 @@ class DynamicAnalyzer:
                     request = response.request
                     # Release the in-flight slot at response headers; SSE streams may stay open.
                     self._limiter.after(id(request))
+                    if getattr(request, "resource_type", None) == "script":
+                        await self._capture_runtime_script(response)
+                        return
                     row = self._request_map.get(id(request))
                     if not row:
                         return
@@ -533,11 +627,17 @@ class DynamicAnalyzer:
                 if self._tasks:
                     await asyncio.gather(*list(self._tasks), return_exceptions=True)
                 await context.close()
-                await browser.close()
-                browser = None
+                # Playwright's context manager owns the browser-driver process.
+                # Its exit tears down transport and Chromium; do not dispatch
+                # a second explicit "Browser.close" protocol command after
+                # close has already drained pending network event handlers.
+            browser = None  # async_playwright.__aexit__ succeeded
+            self.logger.write("-", self.target, 0, "verify",
+                              note="browser_driver_context_closed")
         except Exception as exc:
             self.failure_reason = type(exc).__name__
-            self.logger.write("-", self.target, 0, "dynamic", note=f"browser_phase_error:{self.failure_reason}")
+            self.logger.write("-", self.target, 0, "dynamic",
+                              note=f"browser_phase_error:{self.failure_reason}")
         finally:
             self._limiter.close()
             if browser:

@@ -2,6 +2,9 @@
 
 | 目的 | 权威文档 |
 |---|---|
+| **浏览器加载的 Lazy JS Chunk** 静态 AST 二次分析及请求证据分层 | [ACCEPTANCE_RUNTIME_LAZY_CHUNKS_2026-11-23.md](ACCEPTANCE_RUNTIME_LAZY_CHUNKS_2026-11-23.md) |
+| **SPA Hash + Socket.IO** 受控路由发现、协议分类及双轮真实验证 | [ACCEPTANCE_SPA_SOCKETIO_2026-11-23.md](ACCEPTANCE_SPA_SOCKETIO_2026-11-23.md) |
+| **Juice Shop** 独立双轮真实容器验收、浏览器关闭修复与静态字典过滤 | [ACCEPTANCE_JUICE_SHOP_2026-11-23.md](ACCEPTANCE_JUICE_SHOP_2026-11-23.md) |
 | 开发分支：登录后深层页面探索、CI 验收与尚未合并的改动 | [INTEGRATION_STATUS_2026-11-22.md](INTEGRATION_STATUS_2026-11-22.md) |
 | **V18** 安全登录重定向与八轮 Docker 验收 | [ACCEPTANCE_V18_2026-11-22.md](ACCEPTANCE_V18_2026-11-22.md) |
 | **V17** SSE 有界流观察与六轮 Docker 验收 | [ACCEPTANCE_V17_2026-11-22.md](ACCEPTANCE_V17_2026-11-22.md) |

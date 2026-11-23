@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# CI-only: six Chromium runs across SPA, SSR and true long-lived SSE; no external site.
+# CI-only: ten Chromium runs across SPA/hash-route, SSR, SSE and login; no external site.
 # A separate synthetic out-of-scope container confirms denied requests have no side effect.
 set -Eeuo pipefail
 umask 077
@@ -47,9 +47,10 @@ done
 printf '%s\n' '{"site_id":"ci-synthetic","allowed_hosts":["fixture"],"credentials":[],"headers":{}}' > "$tmp/site.json"
 # These are artificial credentials accepted only by our local fixture server.
 printf '%s\n' '{"site_id":"ci-synthetic-login","allowed_hosts":["fixture"],"headers":{},"credentials":[{"username":"fixture-user","password":"fixture-pass","login_hint":"http://fixture:8765/login"}]}' > "$tmp/site-login.json"
-for scenario in spa ssr sse login; do
+for scenario in spa spa_hash ssr sse login; do
   case "$scenario" in
     spa) TARGET='http://fixture:8765/'; EXPECTED='/api/items' ;;
+    spa_hash) TARGET='http://fixture:8765/spa-hash'; EXPECTED='/api/hash-report' ;;
     ssr) TARGET='http://fixture:8765/ssr'; EXPECTED='/api/ssr-items' ;;
     sse) TARGET='http://fixture:8765/sse'; EXPECTED='/api/stream' ;;
     login) TARGET='http://fixture:8765/dashboard'; EXPECTED='/api/private' ;;
@@ -150,6 +151,17 @@ for ev in hars:
                and r.get('status') == entry['response']['status'] for r in rows), (
                'HAR request does not match a successful actual log request')
 review = json.loads((root / 'static_candidates.json').read_text())
+if scenario == 'spa_hash':
+    declared = (root / 'evidence' / 'js')
+    runtime_chunks = list(declared.glob('runtime-*.js'))
+    assert runtime_chunks, 'Late-loaded browser JS chunk was not persisted'
+    assert any('onlyDeclaredNotCalled' in p.read_text() for p in runtime_chunks), (
+        'Expected late-loaded JS content not captured')
+    assert any((row['method'], row['path']) ==
+               ('GET', '/api/lazy-declared-only') for row in review['candidates']), (
+        'API declaration in lazy JS chunk was not found by AST/regex')
+    assert not any(e['path'] == '/api/lazy-declared-only' for e in eps), (
+        'Uncalled lazy-chunk declaration was falsely promoted as a request-proven API')
 if scenario == 'ssr':
     assert any((r['method'], r['path']) == ('POST', '/api/submit')
                for r in review['candidates']), 'SSR form not preserved as unverified hint'
@@ -179,4 +191,4 @@ if docker logs "$offscope" 2>&1 | grep -E 'GET /forbidden-(resource|redirect|aut
   exit 1
 fi
 echo 'Out-of-scope container saw no forbidden requests: PASS'
-echo 'V18 isolated Docker acceptance PASS: SPA, SSR, SSE and authenticated login, 2 independent runs each'
+echo 'Isolated Docker acceptance PASS: SPA, SPA hash-route, SSR, SSE and login, 2 independent runs each'
