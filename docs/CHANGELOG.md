@@ -6,6 +6,14 @@
 > 记录日期：2026-11-22（Asia/Singapore）  
 > **说明**：以下“V0～V18”是便于理解的**开发迭代阶段编号**，不是正式 Git Tag 或发布版本号。当前 `pyproject.toml` 中的软件版本仍为 `0.1.0`，不要把阶段编号当作发行版本。
 
+## 2026-11-23：SPA Hash 路由与 Socket.IO 传输分类（PR #2，待合入）
+
+- 保留安全 `#/...` 路由，采集 `a[href]` 和常见 Angular routerLink 属性，不点击未知按钮，不提交表单；防止客户端 Hash 路由被丢弃。新增只在真实 `#/reports` 导航后才触发 API 的合成验收，10/10 Docker/Chromium 场景通过。
+- Socket.IO 的 GET/POST 轮询、WS 握手在保留真实 HTTP 方法和 HAR 的同时明确标为协议传输，不宣称为三个业务 REST API。轮询 POST 的不透明帧不做表单解析，防止消息原文出现在参数名与签名注记中。
+- 同代码 SHA `45ca47da` 的 [GitHub Actions 全仓库验收](https://github.com/David-tiao/API/actions/runs/45131303499)：**259 项 pytest 通过**，Docker 28 秒、镜像 2.86 GB、10/10 合成场景成功且越界合成接收端零禁止请求。
+- 同 SHA 的 [独立 Juice Shop 双轮验证](https://github.com/David-tiao/API/actions/runs/45131297364)：每轮 9 条有 HAR 证据的结果，接口集合 Jaccard 1.0000，其中 Socket.IO 协议传输 3/3 正确标注。**不代表 Juice Shop 业务接口覆盖率达到任何百分比**。
+- 详细修复及测试范围见 [SPA/Socket.IO 验收记录](ACCEPTANCE_SPA_SOCKETIO_2026-11-23.md)。改动尚未合入 `main`。
+
 ## 2026-11-23：独立 OWASP Juice Shop 预验收修复（待合入）
 
 - 在自行部署、无对外端口的 OWASP Juice Shop 镜像上，两轮独立扫描稳定复现 Playwright 关闭阶段 KeyError；先前输出被正确标为 `partial_browser_failure`。
