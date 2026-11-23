@@ -204,12 +204,17 @@ API/
 ```bash
 .venv/bin/python -m pytest -q
 
-# 使用已部署、明确授权的练习站做双轮验收
-bash scripts/acceptance_stage10.sh \
-  "http://127.0.0.1:3000/" "./site.local.json" 180
+# 高级用法：先构建镜像，确保你自己的练习服务已加入现有 Docker 网络
+docker build -t api-extractor:0.1.0 .
+
+# 假设你已有 practice-lab-net 网络，且站点容器名为 practice-web；
+# site.practice.json 中的 allowed_hosts 也应允许 practice-web。
+API_EXTRACTOR_NETWORK=practice-lab-net \
+  bash scripts/acceptance_stage10.sh \
+  "http://practice-web:3000/" "./site.practice.json" 180
 ```
 
-双轮验收脚本需要 Docker 与可访问的目标环境，运行前请阅读 [`scripts/README.md`](scripts/README.md)。如需查看 GitHub 的真实 CI 历史：
+这段双轮验收命令是**需要提前准备好容器网络和练习网站**的示例，执行前务必替换为自己的授权目标。`acceptance_stage10.sh` 通过 Docker 运行扫描器，不应直接把宿主机的 `127.0.0.1` 当作容器能访问的站点。运行前请阅读 [`scripts/README.md`](scripts/README.md)。如需查看 GitHub 的真实 CI 历史：
 
 - [主分支 Python + Docker/Chromium 质量门禁](https://github.com/David-tiao/API/actions/workflows/quality-gate.yml)
 - [最新完整基线验证：267 passed / 10 次 Chromium](https://github.com/David-tiao/API/actions/runs/45138090536)
