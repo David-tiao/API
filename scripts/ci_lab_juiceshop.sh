@@ -41,16 +41,14 @@ if [[ "$ready" != 1 ]]; then
   exit 1
 fi
 echo "Self-hosted Juice Shop ready: internal Docker network only."
-echo "Checking Juice Shop HTTP from inside its own container:"
-docker exec "$app" node -e '
-const http = require("node:http");
-const req = http.get("http://127.0.0.1:3000/", response => {
-  console.log("HTTP response status:", response.statusCode);
-  response.resume();
-});
-req.on("error", e => console.log("HTTP connection error:", e.code));
-req.setTimeout(3000, () => { console.log("HTTP readiness timed out"); req.destroy(); });
-' || :
+echo "Checking Juice Shop HTTP through the scanner's isolated Docker network:"
+docker run --rm --pull=never --network "$net" --read-only \
+  --entrypoint python "$SCANNER_IMAGE" -c '
+import urllib.request
+opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+with opener.open("http://juice-shop:3000/", timeout=12) as r:
+    print("Lab HTTP status:", r.status, "content type:", r.headers.get("Content-Type"))
+'
 
 docker image inspect "$APP_IMAGE" --format 'Juice Shop image ID: {{.Id}}'
 
@@ -82,6 +80,18 @@ for n in 1 2; do
       tail -40 "$out/stdout.log" >&2 || :
       exit 1
     }
+  python3 - "$out" "$n" <<'DIAG'
+import json
+from pathlib import Path
+import sys
+out, n = Path(sys.argv[1]), sys.argv[2]
+result = json.loads((out / "result.json").read_text())
+records = [json.loads(line) for line in (out / "tool.log").read_text().splitlines()
+           if line.strip()]
+notes = [r.get("note") for r in records if isinstance(r.get("note"), str)]
+print("Run", n, "diagnosis:", "endpoints", len(result.get("endpoints", [])),
+      "log lines", len(records), "last notes", notes[-15:])
+PY
   # Validate the actual published output schema, in a separate offline container.
   docker run --rm --pull=never --network none --read-only \
     -v "$out:/out:ro" --entrypoint python "$SCANNER_IMAGE" -c '
