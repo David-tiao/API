@@ -20,6 +20,9 @@ _STATIC_I18N_BUNDLE = re.compile(
 
 
 def _is_static_ui_bundle(row: Mapping[str, Any], url: str) -> bool:
+    # Do not filter non-fetch protocols even if an unusual server reuses the path.
+    if row.get("resource_type") != "fetch":
+        return False
     if str(row.get("http_method") or row.get("method") or "").upper() != "GET":
         return False
     try:
