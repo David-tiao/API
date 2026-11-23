@@ -533,7 +533,17 @@ class DynamicAnalyzer:
                 if self._tasks:
                     await asyncio.gather(*list(self._tasks), return_exceptions=True)
                 await context.close()
-                await browser.close()
+                try:
+                    await browser.close()
+                except KeyError:
+                    # Playwright may rewrite an underlying transport-close
+                    # error as KeyError. It is safe to treat it as an already
+                    # closed browser ONLY when the public API confirms this.
+                    disconnected = not browser.is_connected()
+                    self.logger.write("-", self.target, 0, "verify",
+                                      note=f"browser_close_keyerror:disconnected={disconnected}")
+                    if not disconnected:
+                        raise
                 browser = None
         except Exception as exc:
             self.failure_reason = type(exc).__name__
