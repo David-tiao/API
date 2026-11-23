@@ -123,8 +123,7 @@ for n in (1, 2):
     rows = [json.loads(line) for line in (out / "tool.log").read_text(encoding="utf-8").splitlines()
             if line.strip()]
     assert set(result) >= {"site", "generated_at", "tool_version", "endpoints"}
-    assert any(row.get("note") == "run_status:completed" for row in rows), (
-        f"Run {n}: scanner did not finish")
+    completed = any(row.get("note") == "run_status:completed" for row in rows)
     assert all(row.get("phase") in {"static", "dynamic", "verify"} for row in rows), (
         f"Run {n}: bad public log phase")
     endpoints = result["endpoints"]
@@ -157,7 +156,7 @@ for n in (1, 2):
     fingerprint = sorted({(e["method"], e["host"], e["path"]) for e in endpoints})
     snapshot = {
         "run": n,
-        "complete": True,
+        "complete": completed,
         "api_count": len(endpoints),
         "har_proven_count": confirmed,
         "api_fingerprint": [list(item) for item in fingerprint],
@@ -179,12 +178,15 @@ summary = {
     "runs": snapshots,
     "two_run_jaccard": round(jaccard, 4),
     "both_runs_nonempty": all(s["api_count"] > 0 for s in snapshots),
+    "both_runs_complete": all(s["complete"] for s in snapshots),
     "official_hidden_evaluation": False,
 }
 destination.write_text(json.dumps(summary, indent=2), encoding="utf-8")
 print(f"Juice Shop two-run Jaccard: {jaccard:.4f}")
 if not summary["both_runs_nonempty"]:
     raise SystemExit("FAIL: zero evidence-backed API endpoints in one of the runs")
+if not summary["both_runs_complete"]:
+    raise SystemExit("FAIL: browser phase incomplete; see lab summary and run diagnostics")
 PY
 
 echo "Independent Juice Shop acceptance completed."
