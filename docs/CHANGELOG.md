@@ -6,6 +6,14 @@
 > 记录日期：2026-11-22（Asia/Singapore）  
 > **说明**：以下“V0～V18”是便于理解的**开发迭代阶段编号**，不是正式 Git Tag 或发布版本号。当前 `pyproject.toml` 中的软件版本仍为 `0.1.0`，不要把阶段编号当作发行版本。
 
+## 2026-11-23：独立 OWASP Juice Shop 预验收修复（待合入）
+
+- 在自行部署、无对外端口的 OWASP Juice Shop 镜像上，两轮独立扫描稳定复现 Playwright 关闭阶段 KeyError；先前输出被正确标为 `partial_browser_failure`。
+- 用 Playwright 管理器退出代替重复手动关闭命令，保证管理器退出错误仍视为失败。新增浏览器关闭生命周期测试；[GitHub Actions 45127615226](https://github.com/David-tiao/API/actions/runs/45127615226) 真实两轮均 `completed`，各识别 10 条 HAR 有据接口。
+- 从 API 清单中排除 `fetch` 获取的静态翻译字典 `/assets/i18n/en.json`，保留网络日志与 HAR；[GitHub Actions 45127766014](https://github.com/David-tiao/API/actions/runs/45127766014) 两轮各 9 条有证据接口，Jaccard 1.0000。新增定向静态字典过滤测试。
+- 使用仅限内部 Docker 网络、正式 JSON Schema 验证、HAR/JSONL 完整请求对应与去敏验收摘要；不扫描 OWASP 公共演示服务器。**不等于真实站点的 Recall/Precision 分数。**
+- 本修改仍位于独立测试分支；合入 `main` 前须确认最新提交的完整 pytest + Docker 合成回归。详见 [Juice Shop 双轮验收](ACCEPTANCE_JUICE_SHOP_2026-11-23.md)。
+
 ## 集成分支：登录后只读深层导航与 PR 自动验收（待验收）
 
 基线为 V18 `0607b7e1`，更改位于独立开发分支 `integration/authenticated-navigation-20261122`，尚未合并到 main。本轮扩展了经过登录后才能看见的站内锚点导航，严格限制 URL 范围、页面数，并新增真实 Cookie 合成站点的二级页面和 `GET /api/annual-report` 证据验收。GitHub Actions 现支持在 Pull Request 阶段运行全量测试和 Docker 端到端回归。
