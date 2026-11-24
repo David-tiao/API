@@ -6,7 +6,7 @@
 >
 > **项目状态：已合并到 `main`，工程功能与现有自动验收完成。** 这不代表已经通过组织方隐藏站点的正式评分或全部系统级安全审计。
 
-[📖 零基础入门教程](docs/BEGINNER_GUIDE.md) · [🗺️ 文档导航](docs/README.md) · [🧩 项目结构](docs/PROJECT_STRUCTURE.md) · [📜 迭代与修复记录](docs/CHANGELOG.md) · [✅ GitHub Actions](https://github.com/David-tiao/API/actions)
+[📖 零基础精简篇](docs/01-overview/README.md) · [🧩 专业技术篇](docs/02-technical/README.md) · [💻 运行操作篇](docs/03-operations/README.md) · [🗺️ 文档总导航](docs/README.md) · [✅ GitHub Actions](https://github.com/David-tiao/API/actions)
 
 ## 🚀 30 秒认识这个项目
 
@@ -87,97 +87,17 @@ Juice Shop 结果来自在自己的 Docker 内网运行的实例，**不是对 O
 
 ## 🧭 你应该从哪里开始？
 
-| 你的情况 | 推荐入口 |
-|---|---|
-| **完全零基础**，不懂 API、前后端、JSON 或文件夹 | [📖 零基础入门：概念 + 文件结构 + 运行示例](docs/BEGINNER_GUIDE.md) |
-| **想快速运行**，电脑上已经有 Linux 和练习站点 | 往下看「5 分钟上手」 |
-| **想看全部文件分别干什么** | [项目目录与模块边界](docs/PROJECT_STRUCTURE.md) |
-| **想理解整体架构** | [架构图](docs/architecture.md) 和 [底层算法说明](docs/PROJECT_ITERATIONS_ARCHITECTURE_ALGORITHMS.md) |
-| **想复现测试** | [测试与脚本说明](scripts/README.md)、[GitHub Actions](https://github.com/David-tiao/API/actions) |
-| **想看修复了什么问题** | [CHANGELOG](docs/CHANGELOG.md)、[故障与经验](docs/FIXES_AND_LESSONS.md) |
-| **想审查实测证据** | [Juice Shop](docs/ACCEPTANCE_JUICE_SHOP_2026-11-23.md)、[SPA / Socket.IO](docs/ACCEPTANCE_SPA_SOCKETIO_2026-11-23.md)、[Lazy JS](docs/ACCEPTANCE_RUNTIME_LAZY_CHUNKS_2026-11-23.md) |
-| **准备答辩或考核** | 本文的「验收边界」和 [离线评分说明](docs/OFFLINE_BENCHMARK.md) |
+新的 [docs 文档中心](docs/README.md) 按读者需求划分为三个专题目录：
 
-## 🛠️ 5 分钟上手（Linux / 自建练习站）
+| 阅读路线 | 内容 | 入口 |
+|---|---|---|
+| **01 · 零基础精简篇** | 通俗解释项目、术语、架构、文件职责与能力边界，不含运行命令 | [开始阅读](docs/01-overview/README.md) |
+| **02 · 专业技术篇** | [详细架构](docs/02-technical/01-ARCHITECTURE.md)、[算法数学推导](docs/02-technical/02-ALGORITHMS.md)、[版本升级简史](docs/02-technical/03-VERSION_HISTORY.md) | [技术目录](docs/02-technical/README.md) |
+| **03 · 运行操作篇** | 安装、配置、启动、Docker、查看结果、验收、离线评分及排错命令 | [命令行手册](docs/03-operations/README.md) |
 
-下面是**使用路径**，不是保证安装或扫描在任意电脑上都能 5 分钟完成。首次安装 Chromium / Python / Node 依赖可能耗时较长。
+## 🛠️ 快速上手
 
-### 1. 准备环境并取得代码
-
-推荐 Linux x86_64（Ubuntu 22.04/24.04 或兼容环境）；**本地运行**需要 Python 3.11+、Node.js、npm，并且能下载 Playwright Chromium。Docker 模式需要可用的 Docker Engine。
-
-```bash
-git clone https://github.com/David-tiao/API.git
-cd API
-
-python3 --version
-node --version
-npm --version
-
-# 先做环境诊断，不扫描目标网站
-bash scripts/diagnose_environment_stage10.sh check
-```
-
-### 2. 安装项目依赖、运行自检
-
-```bash
-# 建立 .venv、安装 Python/Node 依赖和 Playwright 浏览器
-bash scripts/bootstrap_project_stage1_to_10.sh
-
-# 重新检查单元测试与命令行帮助
-.venv/bin/python -m pytest -q
-.venv/bin/python -m api_extractor.cli --help
-```
-
-也可以在具备 Docker 的电脑上用 `docker build -t api-extractor:0.1.0 .` 构建镜像；可复现的自动 Docker 检查见 [`quality-gate.yml`](.github/workflows/quality-gate.yml)。
-
-### 3. 只对**自己搭建或明确获授权**的练习站运行
-
-假设你已经**另行启动**了一个本地练习站，且它在 **`http://127.0.0.1:3000/`** 正常响应：
-
-```bash
-cp examples/site.example.json site.local.json
-
-# 显式使用本地模式：容器里的 127.0.0.1 不是宿主机。
-API_EXTRACTOR_MODE=local bash scripts/start_extractor_stage8.sh \
-  "http://127.0.0.1:3000/" \
-  "./site.local.json" \
-  "./out/result.json" \
-  120
-```
-
-脚本的四个输入依次是：**起始网址、JSON 配置、输出文件、时间预算（秒）**。示例中的 `127.0.0.1:3000` 不会自动启动一个网站；没有本地目标时，不要预期生成有意义的接口结果。
-
-- `examples/site.example.json` 只是配置格式示例；实际操作时需确认 `allowed_hosts` 与目标站点一致。
-- `credentials` 是可选账号信息；**不要在公开仓库提交真实密码、Token、Cookie 或包含这些信息的配置**。
-- Docker 与手动评测调用方式见 [脚本说明](scripts/README.md) 和 [零基础教程](docs/BEGINNER_GUIDE.md)。Docker 中连接练习容器时要使用正确的**容器网络和服务名**，不能直接照搬宿主机的 `127.0.0.1`。
-- 即使是 GET 请求也未必完全无副作用；必须先确认有明确授权，避免对第三方公共网站任意自动扫描。
-
-### 4. 看懂输出，不只是看有没有报错
-
-```text
-out/
-├── result.json             已证据核验的接口报告
-├── static_candidates.json  静态分析发现但没有实测证据的候选
-├── tool.log                 一行一个 JSON 的运行日志（JSONL）
-└── evidence/
-    ├── dynamic.har          浏览器真实请求的 HAR 证据
-    ├── probe.har            如有显式授权 GET 验证，可能出现
-    ├── js/                  HTML/JS 相关的静态证据
-    └── pages/
-```
-
-```bash
-# JSON 是否能正常解析？
-.venv/bin/python -m json.tool out/result.json
-
-# 查看运行日志的最后几行（也要检查 run_status）
-tail -n 12 out/tool.log
-```
-
-**不要只看退出码 0。** `tool.log` 的 `run_status:completed`、`partial_browser_failure`、`incomplete_budget`、`failed` 各有不同含义；有些情况下程序可以成功写出**部分但合法**的结果。
-
-结果结构由 [`api_extractor/result.schema.json`](api_extractor/result.schema.json) 约束；可以参考 [输出样例](examples/result.example.json)。本地 `out/` 及实际目标站 HAR 可能包含敏感信息，不要原样公开。
+需要实际运行时，请直接阅读 [03 运行操作手册](docs/03-operations/README.md)。该手册集中维护当前命令及前置条件，包括无需外部目标的隔离合成测试，以及仅针对自建或明确获授权站点的运行方式。初次使用建议先检查环境，再运行合成测试，最后尝试自己的练习站点。
 
 ## 🗂️ 项目目录速览
 
@@ -200,7 +120,7 @@ API/
 ├── tools/                    Node / Babel AST 辅助工具
 ├── scripts/                  初始化、启动、诊断、验收脚本
 ├── tests/                    pytest 测试与合成练习站夹具
-├── docs/                     入门、架构、迭代、验收文档
+├── docs/                     文档中心（零基础、专业、操作三条路线）
 ├── examples/                 示例配置与结果
 ├── demo/                     演示材料说明
 ├── archive/legacy/           历史 ZIP / Dockerfile 备份（非当前入口）
@@ -217,33 +137,18 @@ API/
 
 **为什么没有 `src/`？** 目前实际的 Python 包就在根目录 `api_extractor/`。这是已测试并延续的布局，不应为了看起来符合某种模板而复制第二套核心代码。详见 [架构决策 ADR-0001](docs/adr/0001-compatibility-first.md)。
 
-还包含 `graphql_semantics.py`、`transport_semantics.py`、`signature_semantics.py`、`sse_sampling.py`、`redirect_policy.py`、`verification.py`、`offline_benchmark.py` 等专项模块，逐个解释见 [入门指南](docs/BEGINNER_GUIDE.md)。
+还包含 `graphql_semantics.py`、`transport_semantics.py`、`signature_semantics.py`、`sse_sampling.py`、`redirect_policy.py`、`verification.py`、`offline_benchmark.py` 等专项模块，逐个解释见 [零基础篇](docs/01-overview/README.md)。
 
 ## 🔬 如何独立验证？
 
-在已经安装依赖的本地环境：
+具体执行命令统一见 [03 运行操作篇](docs/03-operations/README.md) 的合成验收与离线评分章节。历史验证证据：
 
-```bash
-.venv/bin/python -m pytest -q
+- [主分支质量门禁](https://github.com/David-tiao/API/actions/workflows/quality-gate.yml)
+- [收官基线 CI：267 项测试 / 10 次 Chromium](https://github.com/David-tiao/API/actions/runs/45140723425)
+- [自行部署 Juice Shop 双轮实测](docs/ACCEPTANCE_RUNTIME_LAZY_CHUNKS_2026-11-23.md)
+- [算法与评价公式](docs/02-technical/02-ALGORITHMS.md)
 
-# 高级用法：先构建镜像，确保你自己的练习服务已加入现有 Docker 网络
-docker build -t api-extractor:0.1.0 .
-
-# 假设你已有 practice-lab-net 网络，且站点容器名为 practice-web；
-# site.practice.json 中的 allowed_hosts 也应允许 practice-web。
-API_EXTRACTOR_NETWORK=practice-lab-net \
-  bash scripts/acceptance_stage10.sh \
-  "http://practice-web:3000/" "./site.practice.json" 180
-```
-
-这段双轮验收命令是**需要提前准备好容器网络和练习网站**的示例，执行前务必替换为自己的授权目标。`acceptance_stage10.sh` 通过 Docker 运行扫描器，不应直接把宿主机的 `127.0.0.1` 当作容器能访问的站点。运行前请阅读 [`scripts/README.md`](scripts/README.md)。如需查看 GitHub 的真实 CI 历史：
-
-- [主分支 Python + Docker/Chromium 质量门禁](https://github.com/David-tiao/API/actions/workflows/quality-gate.yml)
-- [最新完整基线验证：267 passed / 10 次 Chromium](https://github.com/David-tiao/API/actions/runs/45138090536)
-- [自行部署 Juice Shop 双轮实测与局限](docs/ACCEPTANCE_JUICE_SHOP_2026-11-23.md)
-- [两轮一致性和分数公式（离线工具）](docs/OFFLINE_BENCHMARK.md)
-
-测试的证据范围必须分清：**单元测试 ≠ 真实浏览器合成测试 ≠ 陌生授权网站 ≠ 官方隐藏评测**。
+单元测试、合成浏览器测试、自建练习站验证与官方隐藏评测属于不同证据等级，不得互相替代。
 
 ## ⚠️ 项目边界：工程收官不等于所有场景都完美
 
@@ -276,7 +181,7 @@ API_EXTRACTOR_NETWORK=practice-lab-net \
 
 从最早能读取网页，到静态 AST、真实 Chromium、证据审计、登录后探索、SPA 懒加载、Socket.IO，再到在独立练习站上发现问题、修复问题、补回归测试——这个项目最值得保留的成果，是**每个结论都有可以复核的测试和证据**。
 
-**代码已经汇入 `main`，欢迎从 [零基础教程](docs/BEGINNER_GUIDE.md) 开始阅读。**
+**代码已经汇入 `main`，欢迎从 [零基础篇](docs/01-overview/README.md) 开始阅读。**
 
 > 🎉 **完结撒花！** 下一位维护者的起点：先读懂项目，再运行测试，然后在明确授权范围内扩展功能。
 
@@ -286,5 +191,5 @@ API_EXTRACTOR_NETWORK=practice-lab-net \
 
 - [2026-11-23 完结版改写之前的完整 README 存档](docs/README_HISTORY_BEFORE_FINALE_2026-11-23.md)（旧阶段记录，仅用于追溯）
 - [开发过程及架构算法](docs/PROJECT_ITERATIONS_ARCHITECTURE_ALGORITHMS.md)
-- [更多使用与诊断指导](docs/API_EXTRACTOR_AI_OPERATIONS.md)
+- [历史使用与诊断指导](docs/API_EXTRACTOR_AI_OPERATIONS.md)（现行命令以操作篇为准）
 - [文档总目录](docs/README.md)
