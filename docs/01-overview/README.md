@@ -111,7 +111,7 @@ Git 是记录代码历史的工具；GitHub 是托管代码的服务。main 是�
 
 召回率指真正接口找到了多少，精确率指报告的接口中有多少是真的；没有权威的真实接口清单（真值），就无法计算可靠的分数。两轮一致不等于两轮都找全。
 
-更多见 [能力与限制原始说明](../CAPABILITIES_AND_LIMITS.md)；实测证据见 [专业版本简史](../02-technical/03-VERSION_HISTORY.md)。
+更多见 [能力与限制原始说明](https://github.com/David-tiao/API/blob/64e20a0f0d985ce78f29647e220ae88cec6122cb/docs/CAPABILITIES_AND_LIMITS.md)；实测证据见 [专业版本简史](../02-technical/03-VERSION_HISTORY.md)。
 
 ## 8. 接下来读哪里？
 

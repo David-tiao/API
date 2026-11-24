@@ -49,7 +49,7 @@ HAR + tool.log + 源码证据核对
 | Juice Shop 观察结果 | 每轮 **9 条有 HAR 证据的记录**、集合一致性 Jaccard = **1.0000** |
 | Socket.IO 分类 | 每轮的 **3/3 条传输记录**已标注；不能当作三条普通业务 REST API |
 
-**对应证据：** [主分支 CI（267 项测试及 10 次 Chromium 验收）](https://github.com/David-tiao/API/actions/runs/45138090536) · [Juice Shop 独立双轮验收](https://github.com/David-tiao/API/actions/runs/45133273791) · [详细实验记录](docs/ACCEPTANCE_SPA_SOCKETIO_2026-11-23.md)。
+**对应证据：** [主分支 CI（267 项测试及 10 次 Chromium 验收）](https://github.com/David-tiao/API/actions/runs/45138090536) · [Juice Shop 独立双轮验收](https://github.com/David-tiao/API/actions/runs/45133273791) · [详细实验记录](https://github.com/David-tiao/API/blob/64e20a0f0d985ce78f29647e220ae88cec6122cb/docs/ACCEPTANCE_SPA_SOCKETIO_2026-11-23.md)。
 
 Juice Shop 结果来自在自己的 Docker 内网运行的实例，**不是对 OWASP 公共演示站进行自动扫描**。测试中的“9 条”表示当次观察到的 API/协议传输记录，不代表该应用所有业务接口，更不能直接推算正式 Recall/Precision。
 
@@ -83,7 +83,7 @@ Juice Shop 结果来自在自己的 Docker 内网运行的实例，**不是对 O
 
 > 以上区分“有端到端测试证据”“实现了但效果依赖网站”“尚未支持或正式验证”。例如 Juice Shop 两轮一致，只能说明**两轮观察结果一致**，并不是 Recall 或 Precision = 100%。
 
-👉 **[阅读详细能力清单、明确资源上限、适用与不适用场景、验证依据](docs/CAPABILITIES_AND_LIMITS.md)**
+👉 **[阅读详细能力清单、明确资源上限、适用与不适用场景、验证依据](https://github.com/David-tiao/API/blob/64e20a0f0d985ce78f29647e220ae88cec6122cb/docs/CAPABILITIES_AND_LIMITS.md)**
 
 ## 🧭 你应该从哪里开始？
 
@@ -135,9 +135,9 @@ API/
 └── README.md                 你正在阅读的项目首页
 ```
 
-**为什么没有 `src/`？** 目前实际的 Python 包就在根目录 `api_extractor/`。这是已测试并延续的布局，不应为了看起来符合某种模板而复制第二套核心代码。详见 [架构决策 ADR-0001](docs/adr/0001-compatibility-first.md)。
+**为什么没有 `src/`？** 目前实际的 Python 包就在根目录 `api_extractor/`。这是已测试并延续的布局，不应为了看起来符合某种模板而复制第二套核心代码。详见 [架构决策 ADR-0001](https://github.com/David-tiao/API/blob/64e20a0f0d985ce78f29647e220ae88cec6122cb/docs/adr/0001-compatibility-first.md)。
 
-还包含 `graphql_semantics.py`、`transport_semantics.py`、`signature_semantics.py`、`sse_sampling.py`、`redirect_policy.py`、`verification.py`、`offline_benchmark.py` 等专项模块，逐个解释见 [零基础篇](docs/01-overview/README.md)。
+还包含 `graphql_semantics.py`、`transport_semantics.py`、`signature_semantics.py`、`sse_sampling.py`、`redirect_policy.py`、`verification.py`、`offline_benchmark.py` 等专项模块，详细模块职责见 [专业架构篇](docs/02-technical/01-ARCHITECTURE.md)。
 
 ## 🔬 如何独立验证？
 
@@ -145,7 +145,7 @@ API/
 
 - [主分支质量门禁](https://github.com/David-tiao/API/actions/workflows/quality-gate.yml)
 - [收官基线 CI：267 项测试 / 10 次 Chromium](https://github.com/David-tiao/API/actions/runs/45140723425)
-- [自行部署 Juice Shop 双轮实测](docs/ACCEPTANCE_RUNTIME_LAZY_CHUNKS_2026-11-23.md)
+- [自行部署 Juice Shop 双轮实测](https://github.com/David-tiao/API/blob/64e20a0f0d985ce78f29647e220ae88cec6122cb/docs/ACCEPTANCE_RUNTIME_LAZY_CHUNKS_2026-11-23.md)
 - [算法与评价公式](docs/02-technical/02-ALGORITHMS.md)
 
 单元测试、合成浏览器测试、自建练习站验证与官方隐藏评测属于不同证据等级，不得互相替代。
@@ -158,7 +158,7 @@ API/
 4. **签名和协议识别有边界。** 能观察部分签名字段、GraphQL、SSE、WebSocket、Socket.IO，但不保证恢复任意加密算法、业务语义或所有订阅事件。
 5. **安全审计仍需正式环境复核。** 现有合成测试不能代替组织方考核机的文件访问、代理、DNS 和外部联网系统级审计。
 6. **输出需要保护。** `site.json`、`tool.log`、HAR、JS 缓存、历史 Git 提交都可能携带敏感信息；将仓库设为私有并不能自动清理旧的公开历史，公开前应单独审查。
-7. **项目历史保留可追溯。** 历次设计与修复记录在 `docs/`；本项目的老 ZIP / Dockerfile 备份不是当前权威源代码。
+7. **项目历史保留可追溯。** 当前文档见三个专题目录，完整旧资料可通过固定 Git 历史提交查看；老 ZIP / Dockerfile 备份不是当前权威源代码。
 
 ## 📚 技术依赖、致谢与 AI 使用说明
 
@@ -189,7 +189,6 @@ API/
 
 ### 历史与附加资料
 
-- [2026-11-23 完结版改写之前的完整 README 存档](docs/README_HISTORY_BEFORE_FINALE_2026-11-23.md)（旧阶段记录，仅用于追溯）
-- [开发过程及架构算法](docs/PROJECT_ITERATIONS_ARCHITECTURE_ALGORITHMS.md)
-- [历史使用与诊断指导](docs/API_EXTRACTOR_AI_OPERATIONS.md)（现行命令以操作篇为准）
+- [版本升级简史](docs/02-technical/03-VERSION_HISTORY.md)
+- [清理前的完整历史文档快照](https://github.com/David-tiao/API/tree/64e20a0f0d985ce78f29647e220ae88cec6122cb/docs)（历史验收及旧设计说明）
 - [文档总目录](docs/README.md)

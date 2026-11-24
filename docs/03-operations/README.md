@@ -180,7 +180,7 @@ GITHUB_WORKSPACE="$PWD/out/juice-shop" bash scripts/ci_lab_juiceshop.sh
 cat out/juice-shop/lab-output/summary.json
 ```
 
-脚本将去敏摘要保存至上述位置，临时环境由脚本清理。不要把 Juice Shop 公共演示站替换成扫描目标。历史双轮实测：[报告](../ACCEPTANCE_RUNTIME_LAZY_CHUNKS_2026-11-23.md)。
+脚本将去敏摘要保存至上述位置，临时环境由脚本清理。不要把 Juice Shop 公共演示站替换成扫描目标。历史双轮实测：[报告](https://github.com/David-tiao/API/blob/64e20a0f0d985ce78f29647e220ae88cec6122cb/docs/ACCEPTANCE_RUNTIME_LAZY_CHUNKS_2026-11-23.md)。
 
 ### 6.2 对已有授权练习站执行两轮验收
 
@@ -211,7 +211,21 @@ API_EXTRACTOR_NETWORK=practice-lab-net \
   --report ./out/benchmark/score.json
 ```
 
-真值格式见 [OFFLINE_BENCHMARK](../OFFLINE_BENCHMARK.md)，公式见 [算法篇](../02-technical/02-ALGORITHMS.md)。只有 Recall 40 与 Precision 20 的部分指标被计算；不能输出正式 100 分成绩。Jaccard 一致性也不是召回率。
+真值文件的最小结构示例（必须按自己的练习站实际接口填写，不能把示例当成真实真值）：
+
+```json
+{
+  "site": "synthetic-offline",
+  "allowed_hosts": ["app.example.test"],
+  "endpoints": [
+    {"method": "GET", "path": "/api/items", "tier": "T1"},
+    {"method": "GET", "path": "/api/account", "tier": "T2"},
+    {"method": "GQL", "path": "/graphql", "tier": "T3"}
+  ]
+}
+```
+
+site 必须与两次运行结果一致；每个方法加归一化路径只能出现一次。完整历史格式说明见 [OFFLINE_BENCHMARK](https://github.com/David-tiao/API/blob/64e20a0f0d985ce78f29647e220ae88cec6122cb/docs/OFFLINE_BENCHMARK.md)，公式见 [算法篇](../02-technical/02-ALGORITHMS.md)。只有 Recall 40 与 Precision 20 的部分指标被计算；不能输出正式 100 分成绩。Jaccard 一致性也不是召回率。
 
 ## 8. 故障排查：先诊断，再做必要修复
 

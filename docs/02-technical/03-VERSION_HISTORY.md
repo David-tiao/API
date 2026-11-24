@@ -1,6 +1,6 @@
 # 02.3｜项目版本简史：每次升级改变了什么
 
-> V0–V18 是开发迭代编号，并非独立软件发布版本；软件版本仍为 v0.1.0。PR #1、PR #2 是后续集成记录。下面按 [CHANGELOG 原文](../CHANGELOG.md) 压缩整理；旧验收文件里的“待合入”“待测试”描述的是当时快照，不是现在的主分支状态。
+> V0–V18 是开发迭代编号，并非独立软件发布版本；软件版本仍为 v0.1.0。PR #1、PR #2 是后续集成记录。下面按 [CHANGELOG 原文](https://github.com/David-tiao/API/blob/64e20a0f0d985ce78f29647e220ae88cec6122cb/docs/CHANGELOG.md) 压缩整理；旧验收文件里的“待合入”“待测试”描述的是当时快照，不是现在的主分支状态。
 
 ## 1. 从基础功能到可靠交付
 
@@ -26,7 +26,7 @@
 | V17 | SSE 有界真实事件采样；六轮 Docker 测试 | 处理持续连接无法等待整个响应的问题 |
 | V18 | 受控登录 POST→GET 重定向、Cookie 认证与八轮 Docker 验收 | 让常见登录后的接口可被真实观察 |
 
-对应详细报告：[V10](../ACCEPTANCE_V10_2026-11-22.md) · [V11](../ACCEPTANCE_V11_2026-11-22.md) · [V12](../ACCEPTANCE_V12_2026-11-22.md) · [V13](../ACCEPTANCE_V13_2026-11-22.md) · [V14](../ACCEPTANCE_V14_2026-11-22.md) · [V15](../ACCEPTANCE_V15_2026-11-22.md) · [V16](../ACCEPTANCE_V16_2026-11-22.md) · [V17](../ACCEPTANCE_V17_2026-11-22.md) · [V18](../ACCEPTANCE_V18_2026-11-22.md)。
+对应详细报告：[V10](https://github.com/David-tiao/API/blob/64e20a0f0d985ce78f29647e220ae88cec6122cb/docs/ACCEPTANCE_V10_2026-11-22.md) · [V11](https://github.com/David-tiao/API/blob/64e20a0f0d985ce78f29647e220ae88cec6122cb/docs/ACCEPTANCE_V11_2026-11-22.md) · [V12](https://github.com/David-tiao/API/blob/64e20a0f0d985ce78f29647e220ae88cec6122cb/docs/ACCEPTANCE_V12_2026-11-22.md) · [V13](https://github.com/David-tiao/API/blob/64e20a0f0d985ce78f29647e220ae88cec6122cb/docs/ACCEPTANCE_V13_2026-11-22.md) · [V14](https://github.com/David-tiao/API/blob/64e20a0f0d985ce78f29647e220ae88cec6122cb/docs/ACCEPTANCE_V14_2026-11-22.md) · [V15](https://github.com/David-tiao/API/blob/64e20a0f0d985ce78f29647e220ae88cec6122cb/docs/ACCEPTANCE_V15_2026-11-22.md) · [V16](https://github.com/David-tiao/API/blob/64e20a0f0d985ce78f29647e220ae88cec6122cb/docs/ACCEPTANCE_V16_2026-11-22.md) · [V17](https://github.com/David-tiao/API/blob/64e20a0f0d985ce78f29647e220ae88cec6122cb/docs/ACCEPTANCE_V17_2026-11-22.md) · [V18](https://github.com/David-tiao/API/blob/64e20a0f0d985ce78f29647e220ae88cec6122cb/docs/ACCEPTANCE_V18_2026-11-22.md)。
 
 ## 2. 主分支集成与真实应用改进
 
@@ -41,7 +41,7 @@
 | PR #2：运行时懒加载 | 复用浏览器已下载的 JS 做二次静态分析 | 未调用的声明进入静态线索文件，不冒充真实请求 |
 | 收官 | PR #2 合并 main；增加新手教程、能力限制与首页文档 | 最终 267 项测试、10 次合成浏览器验收；隔离 Juice Shop 每轮 9 条证据记录 |
 
-证据入口：[PR #1](https://github.com/David-tiao/API/pull/1) · [PR #2](https://github.com/David-tiao/API/pull/2) · [Juice Shop 报告](../ACCEPTANCE_JUICE_SHOP_2026-11-23.md) · [SPA/Socket.IO 报告](../ACCEPTANCE_SPA_SOCKETIO_2026-11-23.md) · [Lazy Chunk 报告](../ACCEPTANCE_RUNTIME_LAZY_CHUNKS_2026-11-23.md) · [收官主分支 CI](https://github.com/David-tiao/API/actions/runs/45140723425)。
+证据入口：[PR #1](https://github.com/David-tiao/API/pull/1) · [PR #2](https://github.com/David-tiao/API/pull/2) · [Juice Shop 报告](https://github.com/David-tiao/API/blob/64e20a0f0d985ce78f29647e220ae88cec6122cb/docs/ACCEPTANCE_JUICE_SHOP_2026-11-23.md) · [SPA/Socket.IO 报告](https://github.com/David-tiao/API/blob/64e20a0f0d985ce78f29647e220ae88cec6122cb/docs/ACCEPTANCE_SPA_SOCKETIO_2026-11-23.md) · [Lazy Chunk 报告](https://github.com/David-tiao/API/blob/64e20a0f0d985ce78f29647e220ae88cec6122cb/docs/ACCEPTANCE_RUNTIME_LAZY_CHUNKS_2026-11-23.md) · [收官主分支 CI](https://github.com/David-tiao/API/actions/runs/45140723425)。
 
 ## 3. 为什么会这样演进？
 
@@ -53,6 +53,6 @@
 - **V16–V18** 逐跳检查、SSE 有界采样、受控登录重定向以安全与可复现为先，不追求任意业务交互覆盖。
 - **PR #2** 将真实站点失败变成回归测试；Socket.IO 分类、静态过滤与懒加载分析改进证据质量，不虚报真实业务接口数量增加。
 
-**仍未完成的验证：** 官方 S1–S5 隐藏站点总分、未知站点的可靠召回率与精确率、完整系统级文件访问及代理/DNS 审计。参见 [能力边界](../CAPABILITIES_AND_LIMITS.md)。
+**仍未完成的验证：** 官方 S1–S5 隐藏站点总分、未知站点的可靠召回率与精确率、完整系统级文件访问及代理/DNS 审计。参见 [能力边界](https://github.com/David-tiao/API/blob/64e20a0f0d985ce78f29647e220ae88cec6122cb/docs/CAPABILITIES_AND_LIMITS.md)。
 
-若需要每次修改的具体文件与故障细节，继续阅读 [CHANGELOG](../CHANGELOG.md) 和 [故障经验](../FIXES_AND_LESSONS.md)，本篇不替代原始记录。
+若需要每次修改的具体文件与故障细节，继续阅读 [CHANGELOG](https://github.com/David-tiao/API/blob/64e20a0f0d985ce78f29647e220ae88cec6122cb/docs/CHANGELOG.md) 和 [故障经验](https://github.com/David-tiao/API/blob/64e20a0f0d985ce78f29647e220ae88cec6122cb/docs/FIXES_AND_LESSONS.md)，本篇不替代原始记录。

@@ -194,7 +194,7 @@ $$
 
 ## 8. 离线评分：召回率、精确率和稳定性
 
-以下公式来自仓库 [离线评估实现](../../api_extractor/offline_benchmark.py) 与 [原评分说明](../OFFLINE_BENCHMARK.md)。生产合并键含 Host；评分主要以方法加独立归一化路径匹配，Host 还参与合法性判断。真值外、重复或越界预测按本地规则计 FP。假设真值已独立提供且非空。
+以下公式来自仓库 [离线评估实现](../../api_extractor/offline_benchmark.py) 与 [原评分说明](https://github.com/David-tiao/API/blob/64e20a0f0d985ce78f29647e220ae88cec6122cb/docs/OFFLINE_BENCHMARK.md)。生产合并键含 Host；评分主要以方法加独立归一化路径匹配，Host 还参与合法性判断。真值外、重复或越界预测按本地规则计 FP。假设真值已独立提供且非空。
 
 ### 8.1 基础计数与加权召回
 
@@ -269,4 +269,4 @@ $$
 | 证据审核 | 检查请求引用一致性 | 任意请求可重放或独立防伪 |
 | 离线评分 | 有真值时量化部分性能 | 无真值时的正式考核成绩 |
 
-延伸阅读：[详细架构](01-ARCHITECTURE.md) · [版本简史](03-VERSION_HISTORY.md) · [旧版算法与迭代原文](../PROJECT_ITERATIONS_ARCHITECTURE_ALGORITHMS.md)。
+延伸阅读：[详细架构](01-ARCHITECTURE.md) · [版本简史](03-VERSION_HISTORY.md) · [旧版算法与迭代原文](https://github.com/David-tiao/API/blob/64e20a0f0d985ce78f29647e220ae88cec6122cb/docs/PROJECT_ITERATIONS_ARCHITECTURE_ALGORITHMS.md)。

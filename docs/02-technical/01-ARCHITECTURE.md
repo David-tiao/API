@@ -134,4 +134,4 @@ Dockerfile 提供 Python/Node/Chromium 运行依赖，评测运行以只读配�
 
 当前已测证据：[主分支 CI](https://github.com/David-tiao/API/actions/runs/45140723425)（267 项、10 次合成 Chromium），[独立 Juice Shop](https://github.com/David-tiao/API/actions/runs/45133273791)（每轮 9 条记录、3 条 Socket.IO 传输）。这些覆盖特定场景，未证明官方 S1–S5 分数、全量 R7/R8 安全审计或任意站点的完整发现率。
 
-延伸阅读：[数学与算法推导](02-ALGORITHMS.md) · [版本简史](03-VERSION_HISTORY.md) · [历史架构决策](../adr/0001-compatibility-first.md) · [能力边界](../CAPABILITIES_AND_LIMITS.md)。
+延伸阅读：[数学与算法推导](02-ALGORITHMS.md) · [版本简史](03-VERSION_HISTORY.md) · [历史架构决策](https://github.com/David-tiao/API/blob/64e20a0f0d985ce78f29647e220ae88cec6122cb/docs/adr/0001-compatibility-first.md) · [能力边界](https://github.com/David-tiao/API/blob/64e20a0f0d985ce78f29647e220ae88cec6122cb/docs/CAPABILITIES_AND_LIMITS.md)。
